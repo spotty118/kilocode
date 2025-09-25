@@ -7,7 +7,7 @@ export class GhostContext {
 	private documentStore: GhostDocumentStore
 	private langChainEnhancer: LangChainContextEnhancer | null = null // kilocode_change
 
-	constructor(documentStore: GhostDocumentStore, enableLangChain = false, langChainConfig?: any) { // kilocode_change
+	constructor(documentStore: GhostDocumentStore, enableLangChain = false, langChainConfig?: Partial<LangChainContextEnhancer['config']>) { // kilocode_change
 		this.documentStore = documentStore
 		// kilocode_change start
 		if (enableLangChain) {
@@ -15,14 +15,25 @@ export class GhostContext {
 			const openaiApiKey = vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.openaiApiKey") || 
 							   process.env.OPENAI_API_KEY
 
-			this.langChainEnhancer = new LangChainContextEnhancer({
-				enabled: true,
-				chunkSize: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkSize") || 1000,
-				maxContextFiles: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.maxContextFiles") || 10,
-				useOpenAI: !!openaiApiKey,
-				openaiApiKey,
-				...langChainConfig
-			})
+			if (!openaiApiKey) {
+				console.warn("[GhostContext] LangChain enabled but no OpenAI API key found. Please configure 'kilo-code.langchain.openaiApiKey' setting.")
+				return
+			}
+
+			try {
+				this.langChainEnhancer = new LangChainContextEnhancer({
+					enabled: true,
+					chunkSize: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkSize") || 1000,
+					chunkOverlap: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkOverlap") || 200,
+					maxContextFiles: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.maxContextFiles") || 10,
+					similarityThreshold: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.similarityThreshold") || 0.7,
+					openaiApiKey,
+					modelName: vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.modelName") || "text-embedding-3-small",
+					...langChainConfig
+				})
+			} catch (error) {
+				console.error("[GhostContext] Failed to initialize LangChain enhancer:", error)
+			}
 		}
 		// kilocode_change end
 	}

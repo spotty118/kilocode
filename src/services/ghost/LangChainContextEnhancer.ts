@@ -4,56 +4,19 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { Document } from "@langchain/core/documents"
 import { OpenAIEmbeddings } from "@langchain/openai"
 import { VectorStore } from "@langchain/core/vectorstores"
+import { Embeddings } from "@langchain/core/embeddings"
 import { GhostSuggestionContext } from "./types"
 
-// kilocode_change start - Add mock embeddings for fallback
-import { Embeddings } from "@langchain/core/embeddings"
-
 /**
- * Mock embeddings implementation for fallback when no OpenAI key is available
+ * Production-ready in-memory vector store implementation
+ * This replaces mock code with a real implementation using OpenAI embeddings
  */
-class MockEmbeddings extends Embeddings {
-	constructor() {
-		super({})
-	}
-
-	async embedDocuments(documents: string[]): Promise<number[][]> {
-		// Simple hash-based embeddings for basic similarity
-		return documents.map(doc => this.hashToVector(doc))
-	}
-
-	async embedQuery(query: string): Promise<number[]> {
-		return this.hashToVector(query)
-	}
-
-	private hashToVector(text: string): number[] {
-		const vector: number[] = new Array(384).fill(0) // 384-dimensional vector
-		const words = text.toLowerCase().split(/\s+/)
-		
-		for (let i = 0; i < words.length; i++) {
-			const word = words[i]
-			for (let j = 0; j < word.length; j++) {
-				const charCode = word.charCodeAt(j)
-				const index = (charCode + i + j) % vector.length
-				vector[index] += 1 / (word.length + 1)
-			}
-		}
-		
-		// Normalize vector
-		const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
-		return magnitude > 0 ? vector.map(val => val / magnitude) : vector
-	}
-}
-
-/**
- * Simple in-memory vector store implementation using LangChain base class
- */
-class SimpleMemoryVectorStore extends VectorStore {
+class ProductionMemoryVectorStore extends VectorStore {
 	private documents: Document[] = []
 	private vectors: number[][] = []
 
 	_vectorstoreType(): string {
-		return "simple_memory"
+		return "production_memory"
 	}
 
 	constructor(embeddings: Embeddings) {
@@ -86,12 +49,12 @@ class SimpleMemoryVectorStore extends VectorStore {
 			.map(item => [item.document, item.similarity])
 	}
 
-	async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
+	override async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
 		const queryVector = await this.embeddings.embedQuery(query)
 		return this.similaritySearchVectorWithScore(queryVector, k)
 	}
 
-	async similaritySearch(query: string, k: number): Promise<Document[]> {
+	override async similaritySearch(query: string, k: number): Promise<Document[]> {
 		const results = await this.similaritySearchWithScore(query, k)
 		return results.map(([doc]) => doc)
 	}
@@ -113,12 +76,12 @@ class SimpleMemoryVectorStore extends VectorStore {
 		return denominator === 0 ? 0 : dotProduct / denominator
 	}
 
-	static async fromTexts(
+	static override async fromTexts(
 		texts: string[],
 		metadatas: object[],
 		embeddings: Embeddings
-	): Promise<SimpleMemoryVectorStore> {
-		const store = new SimpleMemoryVectorStore(embeddings)
+	): Promise<ProductionMemoryVectorStore> {
+		const store = new ProductionMemoryVectorStore(embeddings)
 		const documents = texts.map((text, i) => new Document({
 			pageContent: text,
 			metadata: metadatas[i] || {}
@@ -135,11 +98,11 @@ class SimpleMemoryVectorStore extends VectorStore {
 export interface LangChainContextConfig {
 	enabled: boolean
 	chunkSize: number
-	chunkOverlap: number
+	chunkOverlap: number // kilocode_change - Add missing chunkOverlap property
 	maxContextFiles: number
 	similarityThreshold: number
-	openaiApiKey?: string // kilocode_change - Add OpenAI API key for embeddings
-	useOpenAI?: boolean // kilocode_change - Allow disabling OpenAI embeddings for local-only operation
+	openaiApiKey: string // kilocode_change - Required OpenAI API key for production
+	modelName?: string // kilocode_change - Allow custom embedding model selection
 }
 
 /**
@@ -162,19 +125,26 @@ export interface LangChainEnhancedContext {
 export class LangChainContextEnhancer {
 	private config: LangChainContextConfig
 	private textSplitter: RecursiveCharacterTextSplitter
-	private vectorStore: SimpleMemoryVectorStore | null = null // kilocode_change - Use real LangChain-based MemoryVectorStore
-	private embeddings: OpenAIEmbeddings | MockEmbeddings | null = null // kilocode_change - Add real OpenAI embeddings
+	private vectorStore: ProductionMemoryVectorStore | null = null // kilocode_change - Use production-ready vector store
+	private embeddings: OpenAIEmbeddings | null = null // kilocode_change - Only use OpenAI embeddings for production
 	private isInitialized = false
 
-	constructor(config?: Partial<LangChainContextConfig>) {
+	constructor(config: LangChainContextConfig) { // kilocode_change - Make config required
+		// kilocode_change start - Validate required configuration
+		if (!config.openaiApiKey) {
+			throw new Error("OpenAI API key is required for LangChain context enhancement")
+		}
+		// kilocode_change end
+
+		// Set defaults first, then override with provided config
 		this.config = {
-			enabled: true,
-			chunkSize: 1000,
-			chunkOverlap: 200,
-			maxContextFiles: 10,
-			similarityThreshold: 0.7, // kilocode_change - Higher threshold for real embeddings
-			useOpenAI: true, // kilocode_change - Default to using OpenAI embeddings
 			...config,
+			enabled: config.enabled ?? true,
+			chunkSize: config.chunkSize ?? 1000,
+			chunkOverlap: config.chunkOverlap ?? 200,
+			maxContextFiles: config.maxContextFiles ?? 10,
+			similarityThreshold: config.similarityThreshold ?? 0.7,
+			modelName: config.modelName ?? "text-embedding-3-small", // kilocode_change - Use cost-effective production model
 		}
 
 		this.textSplitter = new RecursiveCharacterTextSplitter({
@@ -192,26 +162,20 @@ export class LangChainContextEnhancer {
 		}
 
 		try {
-			// kilocode_change start - Initialize real LangChain embeddings and vector store
-			if (this.config.useOpenAI && this.config.openaiApiKey) {
-				this.embeddings = new OpenAIEmbeddings({
-					openAIApiKey: this.config.openaiApiKey,
-					modelName: "text-embedding-3-small", // Cost-effective embedding model
-				})
-			} else {
-				// Fallback to a simple text-based approach if no OpenAI key provided
-				console.warn("[LangChainContextEnhancer] No OpenAI API key provided, falling back to text-based similarity")
-				this.embeddings = new MockEmbeddings()
-			}
+			// kilocode_change start - Initialize production OpenAI embeddings only
+			this.embeddings = new OpenAIEmbeddings({
+				openAIApiKey: this.config.openaiApiKey,
+				modelName: this.config.modelName || "text-embedding-3-small",
+			})
 
-			// Create empty vector store initially 
-			this.vectorStore = new SimpleMemoryVectorStore(this.embeddings)
+			// Create empty vector store with OpenAI embeddings
+			this.vectorStore = new ProductionMemoryVectorStore(this.embeddings)
 			// kilocode_change end
 			
 			this.isInitialized = true
 		} catch (error) {
-			console.warn("[LangChainContextEnhancer] Failed to initialize vector store:", error)
-			this.config.enabled = false
+			console.error("[LangChainContextEnhancer] Failed to initialize vector store:", error)
+			throw new Error(`Failed to initialize LangChain context enhancer: ${error instanceof Error ? error.message : 'Unknown error'}`)
 		}
 	}
 
@@ -281,15 +245,15 @@ export class LangChainContextEnhancer {
 			const relevantDocs = await this.vectorStore.similaritySearchWithScore(searchQuery, 5)
 
 			const relevantCodeChunks = relevantDocs
-				.filter(([, score]) => score >= this.config.similarityThreshold)
-				.map(([doc, score]) => ({
+				.filter(([, score]: [Document, number]) => score >= this.config.similarityThreshold)
+				.map(([doc, score]: [Document, number]) => ({
 					content: doc.pageContent,
 					filePath: doc.metadata.filePath as string,
 					similarity: score,
 				}))
 			// kilocode_change end
 
-			const relatedFiles = Array.from(new Set(relevantCodeChunks.map((chunk) => chunk.filePath)))
+			const relatedFiles: string[] = Array.from(new Set(relevantCodeChunks.map((chunk: { filePath: string }) => chunk.filePath)))
 
 			const contextSummary = this.generateContextSummary(originalContext, relevantCodeChunks)
 
@@ -367,6 +331,12 @@ export class LangChainContextEnhancer {
 	 * Updates the configuration
 	 */
 	updateConfig(newConfig: Partial<LangChainContextConfig>): void {
+		// kilocode_change start - Validate API key if being updated
+		if (newConfig.openaiApiKey !== undefined && !newConfig.openaiApiKey) {
+			throw new Error("OpenAI API key cannot be empty")
+		}
+		// kilocode_change end
+
 		this.config = { ...this.config, ...newConfig }
 
 		// Reinitialize if necessary
@@ -377,8 +347,8 @@ export class LangChainContextEnhancer {
 			})
 		}
 
-		// kilocode_change start - Reset vector store if embeddings config changed
-		if (newConfig.enabled === false || newConfig.openaiApiKey !== undefined || newConfig.useOpenAI !== undefined) {
+		// kilocode_change start - Reset vector store if critical config changed
+		if (newConfig.enabled === false || newConfig.openaiApiKey !== undefined || newConfig.modelName !== undefined) {
 			this.vectorStore = null
 			this.embeddings = null
 			this.isInitialized = false

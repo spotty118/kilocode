@@ -9,6 +9,14 @@ export const ghostServiceSettingsSchema = z
 		enableCustomProvider: z.boolean().optional(),
 		apiConfigId: z.string().optional(),
 		showGutterAnimation: z.boolean().optional(),
+		// kilocode_change start - Add LangChain settings
+		enableLangChain: z.boolean().optional(),
+		langChainOpenaiApiKey: z.string().optional(),
+		langChainChunkSize: z.number().min(500).max(2000).default(1000).optional(),
+		langChainMaxContextFiles: z.number().min(5).max(50).default(10).optional(),
+		langChainSimilarityThreshold: z.number().min(0.1).max(1.0).default(0.7).optional(),
+		langChainModelName: z.string().default("text-embedding-3-small").optional(),
+		// kilocode_change end
 	})
 	.optional()
 
