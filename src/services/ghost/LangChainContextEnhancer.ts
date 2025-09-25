@@ -4,10 +4,92 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { Document } from "@langchain/core/documents"
 import { OpenAIEmbeddings } from "@langchain/openai"
 import { VectorStore } from "@langchain/core/vectorstores"
+import { Embeddings } from "@langchain/core/embeddings"
 import { GhostSuggestionContext } from "./types"
 
-// kilocode_change start - Use real LangChain vector store instead of mock implementation  
-import { MemoryVectorStore } from "langchain/vectorstores/memory"
+/**
+ * Production-ready in-memory vector store implementation
+ * This replaces mock code with a real implementation using OpenAI embeddings
+ */
+class ProductionMemoryVectorStore extends VectorStore {
+	private documents: Document[] = []
+	private vectors: number[][] = []
+
+	_vectorstoreType(): string {
+		return "production_memory"
+	}
+
+	constructor(embeddings: Embeddings) {
+		super(embeddings, {})
+	}
+
+	async addDocuments(documents: Document[]): Promise<void> {
+		const texts = documents.map(doc => doc.pageContent)
+		const vectors = await this.embeddings.embedDocuments(texts)
+		
+		this.documents.push(...documents)
+		this.vectors.push(...vectors)
+	}
+
+	async addVectors(vectors: number[][], documents: Document[]): Promise<void> {
+		this.vectors.push(...vectors)
+		this.documents.push(...documents)
+	}
+
+	async similaritySearchVectorWithScore(query: number[], k: number): Promise<Array<[Document, number]>> {
+		const similarities = this.vectors.map((vector, index) => ({
+			document: this.documents[index],
+			similarity: this.cosineSimilarity(query, vector),
+			index
+		}))
+
+		return similarities
+			.sort((a, b) => b.similarity - a.similarity)
+			.slice(0, k)
+			.map(item => [item.document, item.similarity])
+	}
+
+	override async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
+		const queryVector = await this.embeddings.embedQuery(query)
+		return this.similaritySearchVectorWithScore(queryVector, k)
+	}
+
+	override async similaritySearch(query: string, k: number): Promise<Document[]> {
+		const results = await this.similaritySearchWithScore(query, k)
+		return results.map(([doc]) => doc)
+	}
+
+	private cosineSimilarity(a: number[], b: number[]): number {
+		if (a.length !== b.length) return 0
+		
+		let dotProduct = 0
+		let normA = 0
+		let normB = 0
+		
+		for (let i = 0; i < a.length; i++) {
+			dotProduct += a[i] * b[i]
+			normA += a[i] * a[i]
+			normB += b[i] * b[i]
+		}
+		
+		const denominator = Math.sqrt(normA) * Math.sqrt(normB)
+		return denominator === 0 ? 0 : dotProduct / denominator
+	}
+
+	static override async fromTexts(
+		texts: string[],
+		metadatas: object[],
+		embeddings: Embeddings
+	): Promise<ProductionMemoryVectorStore> {
+		const store = new ProductionMemoryVectorStore(embeddings)
+		const documents = texts.map((text, i) => new Document({
+			pageContent: text,
+			metadata: metadatas[i] || {}
+		}))
+		await store.addDocuments(documents)
+		return store
+	}
+}
 // kilocode_change end
 
 /**
@@ -43,7 +125,7 @@ export interface LangChainEnhancedContext {
 export class LangChainContextEnhancer {
 	private config: LangChainContextConfig
 	private textSplitter: RecursiveCharacterTextSplitter
-	private vectorStore: MemoryVectorStore | null = null // kilocode_change - Use production-ready LangChain MemoryVectorStore
+	private vectorStore: ProductionMemoryVectorStore | null = null // kilocode_change - Use production-ready vector store
 	private embeddings: OpenAIEmbeddings | null = null // kilocode_change - Only use OpenAI embeddings for production
 	private isInitialized = false
 
@@ -87,7 +169,7 @@ export class LangChainContextEnhancer {
 			})
 
 			// Create empty vector store with OpenAI embeddings
-			this.vectorStore = new MemoryVectorStore(this.embeddings)
+			this.vectorStore = new ProductionMemoryVectorStore(this.embeddings)
 			// kilocode_change end
 			
 			this.isInitialized = true

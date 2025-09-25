@@ -19,8 +19,8 @@ import {
 	Collapsible,
 	CollapsibleTrigger,
 	CollapsibleContent,
-	VSCodeTextField, // kilocode_change - Add text field for API key
 } from "@src/components/ui"
+import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react" // kilocode_change - Import from correct location
 import { vscode } from "@/utils/vscode"
 import { ControlledCheckbox } from "../common/ControlledCheckbox"
 import { useKeybindings } from "@/hooks/useKeybindings"

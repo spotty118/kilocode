@@ -19,14 +19,16 @@ vi.mock("@langchain/openai", () => ({
 	}))
 }))
 
-vi.mock("langchain/vectorstores/memory", () => ({
-	MemoryVectorStore: vi.fn().mockImplementation(() => ({
-		addDocuments: vi.fn().mockResolvedValue(undefined),
-		similaritySearchWithScore: vi.fn().mockResolvedValue([
-			[{ pageContent: "test content", metadata: { filePath: "/test/file.ts" } }, 0.8]
-		])
+// kilocode_change start - Mock OpenAI embeddings for testing - no need to mock vector store as it's implemented in-file
+vi.mock("@langchain/openai", () => ({
+	OpenAIEmbeddings: vi.fn().mockImplementation(() => ({
+		embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+		embedQuery: vi.fn().mockResolvedValue([0.2, 0.3, 0.4]),
 	}))
 }))
+
+// No need to mock ProductionMemoryVectorStore as it's implemented in the same file
+// kilocode_change end
 // kilocode_change end
 
 describe("LangChainContextEnhancer", () => {
