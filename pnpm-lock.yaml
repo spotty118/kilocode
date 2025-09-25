@@ -1503,6 +1503,12 @@ importers:
         specifier: ^3.25.61
         version: 3.25.61
     devDependencies:
+      '@langchain/core':
+        specifier: ^0.3.77
+        version: 0.3.77(openai@5.12.2(ws@8.18.3)(zod@3.25.61))
+      '@langchain/textsplitters':
+        specifier: ^0.1.0
+        version: 0.1.0(@langchain/core@0.3.77(openai@5.12.2(ws@8.18.3)(zod@3.25.61)))
       '@roo-code/build':
         specifier: workspace:^
         version: link:../packages/build
@@ -2974,6 +2980,9 @@ packages:
   '@cerebras/cerebras_cloud_sdk@1.46.0':
     resolution: {integrity: sha512-5IFlD9jvZr5fRsHd4pL4sFkzDPSvHxzM0dmk3mJG2/biRBl+3EV6CdXCabf7J8kr8hyQyK67N0rQLnYy6NSh9w==}
 
+  '@cfworker/json-schema@4.1.1':
+    resolution: {integrity: sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og==}
+
   '@changesets/apply-release-plan@7.0.12':
     resolution: {integrity: sha512-EaET7As5CeuhTzvXTQCRZeBUcisoYPDDcXvgTE/2jmmypKp0RC7LxKj/yzqeh/1qFTZI7oDGFcL1PHRuQuketQ==}
 
@@ -4169,6 +4178,16 @@ packages:
 
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
+
+  '@langchain/core@0.3.77':
+    resolution: {integrity: sha512-aqXHea9xfpVn6VoCq9pjujwFqrh3vw3Fgm9KFUZJ1cF7Bx5HI62DvQPw8LlRB3NB4dhwBBA1ldAVkkkd1du8nA==}
+    engines: {node: '>=18'}
+
+  '@langchain/textsplitters@0.1.0':
+    resolution: {integrity: sha512-djI4uw9rlkAb5iMhtLED+xJebDdAG935AdP4eRTB02R7OB/act55Bj9wsskhZsvuyQRpO4O1wQOp85s6T6GWmw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.2.21 <0.4.0'
 
   '@leichtgewicht/ip-codec@2.0.5':
     resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
@@ -7177,6 +7196,9 @@ packages:
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
 
+  '@types/uuid@10.0.0':
+    resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
+
   '@types/uuid@9.0.8':
     resolution: {integrity: sha512-jg+97EGIcY9AGHJJRaaPVgetKDsrTgbRjQ5Msgjh/DQKEFl0DtyRr/VCOyD1T2R1MNeWPK/u7JoGhlDZnKBAfA==}
 
@@ -8893,6 +8915,9 @@ packages:
 
   console-control-strings@1.1.0:
     resolution: {integrity: sha512-ty/fTekppD2fIwRvnZAVdeOiGd1c7YXEixbgJTNzqcxJWKQnjJ/V1bNEEE6hygpM3WjwHFUVK6HTjWSzV4a8sQ==}
+
+  console-table-printer@2.14.6:
+    resolution: {integrity: sha512-MCBl5HNVaFuuHW6FGbL/4fB7N/ormCy+tQ+sxTrF6QtSbSNETvPuOVbkJBhzDgYhvjWGrTma4eYJa37ZuoQsPw==}
 
   content-disposition@0.5.2:
     resolution: {integrity: sha512-kRGRZw3bLlFISDBgwTSA1TMBFN6J6GWDeubmDE3AF+3+yXL8hTWv8r5rkLbqYXY4RjPk/EzHnClI3zQf1cFmHA==}
@@ -12364,6 +12389,9 @@ packages:
     resolution: {integrity: sha512-pbKLsbCfi7kriM3s1J4DDCo7jQkI58zPLHi0heXPzPlj0hjUsm+FesPUbE0DSbIVIK503A36aUBoCN7eMFedkA==}
     engines: {node: '>=1.0.0'}
 
+  js-tiktoken@1.0.21:
+    resolution: {integrity: sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -12590,6 +12618,23 @@ packages:
   langium@3.3.1:
     resolution: {integrity: sha512-QJv/h939gDpvT+9SiLVlY7tZC3xB2qK57v0J04Sh9wpMb6MP1q8gB21L3WIo8T5P1MSMg3Ep14L7KkDCFG3y4w==}
     engines: {node: '>=16.0.0'}
+
+  langsmith@0.3.69:
+    resolution: {integrity: sha512-YKzu92YAP2o+d+1VmR38xqFX0RIRLKYj1IqdflVEY83X0FoiVlrWO3xDLXgnu7vhZ2N2M6jx8VO9fVF8yy9gHA==}
+    peerDependencies:
+      '@opentelemetry/api': '*'
+      '@opentelemetry/exporter-trace-otlp-proto': '*'
+      '@opentelemetry/sdk-trace-base': '*'
+      openai: '*'
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/exporter-trace-otlp-proto':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      openai:
+        optional: true
 
   last-run@1.1.1:
     resolution: {integrity: sha512-U/VxvpX4N/rFvPzr3qG5EtLKEnNI0emvIQB3/ecEwv+8GHaUKbIB8vxv1Oai5FAF0d0r7LXHhLLe5K/yChm5GQ==}
@@ -13597,6 +13642,10 @@ packages:
   multimatch@2.1.0:
     resolution: {integrity: sha512-0mzK8ymiWdehTBiJh0vClAzGyQbdtyWqzSVx//EK4N/D+599RFlGfTAsKw2zMSABtDG9C6Ul2+t8f2Lbdjf5mA==}
     engines: {node: '>=0.10.0'}
+
+  mustache@4.2.0:
+    resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
+    hasBin: true
 
   mute-stdout@1.0.1:
     resolution: {integrity: sha512-kDcwXR4PS7caBpuRYYBUz9iVixUk3anO3f5OYFiIPwK/20vCzKCHyKoulbiDY1S53zD2bxUpxN/IJ+TnXjfvxg==}
@@ -16166,6 +16215,9 @@ packages:
   simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
 
+  simple-wcswidth@1.1.2:
+    resolution: {integrity: sha512-j7piyCjAeTDSjzTSQ7DokZtMNwNlEAyxqSZeCS+CXH7fJ4jx3FuJ/mTW3mE+6JLs4VJBbcll0Kjn+KXI5t21Iw==}
+
   sinon-test@3.1.6:
     resolution: {integrity: sha512-3jBJGf61sS2EN3M+YuIiIbeutKrubP6SFolceTcJrubG+4s+zq3rey/y0huSEwU2ECKOcyCs7EkzANnwqHWPjA==}
     peerDependencies:
@@ -17565,6 +17617,10 @@ packages:
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
+
+  uuid@10.0.0:
+    resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    hasBin: true
 
   uuid@11.1.0:
     resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
@@ -20052,6 +20108,8 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
+  '@cfworker/json-schema@4.1.1': {}
+
   '@changesets/apply-release-plan@7.0.12':
     dependencies:
       '@changesets/config': 3.1.1
@@ -22092,6 +22150,31 @@ snapshots:
       - supports-color
 
   '@kwsites/promise-deferred@1.1.1': {}
+
+  '@langchain/core@0.3.77(openai@5.12.2(ws@8.18.3)(zod@3.25.61))':
+    dependencies:
+      '@cfworker/json-schema': 4.1.1
+      ansi-styles: 5.2.0
+      camelcase: 6.3.0
+      decamelize: 1.2.0
+      js-tiktoken: 1.0.21
+      langsmith: 0.3.69(openai@5.12.2(ws@8.18.3)(zod@3.25.61))
+      mustache: 4.2.0
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      uuid: 10.0.0
+      zod: 3.25.76
+      zod-to-json-schema: 3.24.5(zod@3.25.76)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+
+  '@langchain/textsplitters@0.1.0(@langchain/core@0.3.77(openai@5.12.2(ws@8.18.3)(zod@3.25.61)))':
+    dependencies:
+      '@langchain/core': 0.3.77(openai@5.12.2(ws@8.18.3)(zod@3.25.61))
+      js-tiktoken: 1.0.21
 
   '@leichtgewicht/ip-codec@2.0.5': {}
 
@@ -25402,6 +25485,8 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
+  '@types/uuid@10.0.0': {}
+
   '@types/uuid@9.0.8': {}
 
   '@types/vinyl@2.0.12':
@@ -25662,7 +25747,7 @@ snapshots:
       sirv: 3.0.1
       tinyglobby: 0.2.14
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@24.2.1)(@vitest/ui@3.2.4)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.19.4)(yaml@2.8.0)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@20.17.50)(@vitest/ui@3.2.4)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.19.4)(yaml@2.8.0)
 
   '@vitest/utils@2.0.5':
     dependencies:
@@ -27483,6 +27568,10 @@ snapshots:
   consola@3.4.2: {}
 
   console-control-strings@1.1.0: {}
+
+  console-table-printer@2.14.6:
+    dependencies:
+      simple-wcswidth: 1.1.2
 
   content-disposition@0.5.2: {}
 
@@ -31817,6 +31906,10 @@ snapshots:
     dependencies:
       easy-stack: 1.0.1
 
+  js-tiktoken@1.0.21:
+    dependencies:
+      base64-js: 1.5.1
+
   js-tokens@4.0.0: {}
 
   js-tokens@9.0.1: {}
@@ -32137,6 +32230,18 @@ snapshots:
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
       vscode-uri: 3.0.8
+
+  langsmith@0.3.69(openai@5.12.2(ws@8.18.3)(zod@3.25.61)):
+    dependencies:
+      '@types/uuid': 10.0.0
+      chalk: 4.1.2
+      console-table-printer: 2.14.6
+      p-queue: 6.6.2
+      p-retry: 4.6.2
+      semver: 7.7.2
+      uuid: 10.0.0
+    optionalDependencies:
+      openai: 5.12.2(ws@8.18.3)(zod@3.25.61)
 
   last-run@1.1.1:
     dependencies:
@@ -33507,6 +33612,8 @@ snapshots:
       array-union: 1.0.2
       arrify: 1.0.1
       minimatch: 3.1.2
+
+  mustache@4.2.0: {}
 
   mute-stdout@1.0.1: {}
 
@@ -36507,6 +36614,8 @@ snapshots:
       is-arrayish: 0.3.2
     optional: true
 
+  simple-wcswidth@1.1.2: {}
+
   sinon-test@3.1.6(sinon@12.0.1):
     dependencies:
       sinon: 12.0.1
@@ -38048,6 +38157,8 @@ snapshots:
   utility-types@3.11.0: {}
 
   utils-merge@1.0.1: {}
+
+  uuid@10.0.0: {}
 
   uuid@11.1.0: {}
 

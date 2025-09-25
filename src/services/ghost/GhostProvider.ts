@@ -66,7 +66,10 @@ export class GhostProvider {
 		this.workspaceEdit = new GhostWorkspaceEdit()
 		this.providerSettingsManager = new ProviderSettingsManager(context)
 		this.model = new GhostModel()
-		this.ghostContext = new GhostContext(this.documentStore)
+		this.ghostContext = new GhostContext(
+			this.documentStore,
+			vscode.workspace.getConfiguration("kilo-code.langchain").get("enabled", false), // kilocode_change
+		)
 		this.cursor = new GhostCursor()
 		this.cursorAnimation = new GhostGutterAnimation(context)
 
@@ -253,8 +256,22 @@ export class GhostProvider {
 		this.isRequestCancelled = false
 
 		const context = await this.ghostContext.generate(initialContext)
-		const systemPrompt = this.strategy.getSystemPrompt(context)
-		const userPrompt = this.strategy.getSuggestionPrompt(context)
+
+		// kilocode_change start
+		// Get enhanced context if LangChain is enabled
+		let enhancedContext = null
+		if (this.ghostContext.hasLangChainEnhancement()) {
+			try {
+				enhancedContext = await this.ghostContext.getEnhancedContext(context)
+			} catch (error) {
+				console.warn("[GhostProvider] Failed to get enhanced context:", error)
+			}
+		}
+
+		const systemPrompt = this.strategy.getSystemPrompt(context, enhancedContext)
+		const userPrompt = this.strategy.getSuggestionPrompt(context, enhancedContext)
+		// kilocode_change end
+
 		if (this.isRequestCancelled) {
 			return
 		}

@@ -83,7 +83,7 @@ describe("GhostRecentOperations", () => {
 
 	beforeEach(() => {
 		documentStore = new GhostDocumentStore()
-		context = new GhostContext(documentStore)
+		context = new GhostContext(documentStore, false) // kilocode_change - explicitly disable LangChain for tests
 		strategy = new GhostStrategy()
 
 		// Create a mock document
