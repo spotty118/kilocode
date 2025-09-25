@@ -28,7 +28,7 @@ export class MermaidSyntaxFixer {
 		// Fix HTML entity encoding: --&gt; should be -->;
 		// surprisingly, this does most of the heavy lifting in the MermaidSyntaxFixer
 		// sometimes the llm prepends ```mermaid, remove that
-		return code.replace(/--&gt;/g, "-->").replace(/```mermaid/, "")
+		return code.replace(/--&gt;/g, "-->").replace(/```mermaid\n?/g, "").replace(/```\s*$/g, "") // kilocode_change
 	}
 
 	/**
@@ -102,7 +102,7 @@ export class MermaidSyntaxFixer {
 		let llmAttempts = 0
 		let finalError: string | undefined
 
-		while (true) {
+		while (llmAttempts <= this.MAX_FIX_ATTEMPTS) { // kilocode_change - more explicit loop condition
 			console.info("attempt ", llmAttempts)
 			currentCode = this.applyDeterministicFixes(currentCode)
 

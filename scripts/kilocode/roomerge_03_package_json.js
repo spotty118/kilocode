@@ -179,7 +179,9 @@ function main() {
 }
 
 // Run the main function
-main().catch((error) => {
+try { // kilocode_change
+	main()
+} catch (error) {
 	console.error("Error:", error)
 	process.exit(1)
-})
+}
