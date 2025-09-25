@@ -11,34 +11,53 @@ const mockDocument = {
 	getText: () => "function test() { return 'hello world'; }",
 } as vscode.TextDocument
 
-// kilocode_change start - Mock OpenAI embeddings for testing
+// kilocode_change start - Mock OpenAI embeddings and LangChain for testing
 vi.mock("@langchain/openai", () => ({
 	OpenAIEmbeddings: vi.fn().mockImplementation(() => ({
 		embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
 		embedQuery: vi.fn().mockResolvedValue([0.2, 0.3, 0.4]),
 	}))
 }))
+
+vi.mock("langchain/vectorstores/memory", () => ({
+	MemoryVectorStore: vi.fn().mockImplementation(() => ({
+		addDocuments: vi.fn().mockResolvedValue(undefined),
+		similaritySearchWithScore: vi.fn().mockResolvedValue([
+			[{ pageContent: "test content", metadata: { filePath: "/test/file.ts" } }, 0.8]
+		])
+	}))
+}))
 // kilocode_change end
 
 describe("LangChainContextEnhancer", () => {
 	let enhancer: LangChainContextEnhancer
+	const testConfig = {
+		enabled: true,
+		openaiApiKey: "test-key-12345",
+		chunkSize: 1000,
+		chunkOverlap: 200, // kilocode_change - Add missing chunkOverlap
+		maxContextFiles: 10,
+		similarityThreshold: 0.7,
+	}
 
 	beforeEach(() => {
-		// kilocode_change - Use mock embeddings for testing instead of requiring OpenAI key
-		enhancer = new LangChainContextEnhancer({ 
-			enabled: true,
-			useOpenAI: false // Use mock embeddings for testing
-		})
+		// kilocode_change - Use real config with OpenAI key for production testing
+		enhancer = new LangChainContextEnhancer(testConfig)
 	})
 
-	it("should initialize with default configuration", () => {
+	it("should require OpenAI API key for initialization", () => {
+		expect(() => new LangChainContextEnhancer({ ...testConfig, openaiApiKey: "" })).toThrow("OpenAI API key is required")
+	})
+
+	it("should initialize with provided configuration", () => {
 		expect(enhancer.getConfig().enabled).toBe(true)
 		expect(enhancer.getConfig().chunkSize).toBe(1000)
 		expect(enhancer.getConfig().maxContextFiles).toBe(10)
+		expect(enhancer.getConfig().openaiApiKey).toBe("test-key-12345")
 	})
 
 	it("should be disabled when configured as disabled", () => {
-		const disabledEnhancer = new LangChainContextEnhancer({ enabled: false })
+		const disabledEnhancer = new LangChainContextEnhancer({ ...testConfig, enabled: false })
 		expect(disabledEnhancer.getConfig().enabled).toBe(false)
 		expect(disabledEnhancer.isReady()).toBe(false)
 	})
@@ -73,15 +92,17 @@ describe("LangChainContextEnhancer", () => {
 		expect(enhancer.getConfig().maxContextFiles).toBe(5)
 	})
 
-	// kilocode_change start - Add test for OpenAI integration
-	it("should work with OpenAI embeddings when configured", () => {
-		const openaiEnhancer = new LangChainContextEnhancer({
-			enabled: true,
-			useOpenAI: true,
-			openaiApiKey: "test-key"
+	it("should validate API key when updating config", () => {
+		expect(() => enhancer.updateConfig({ openaiApiKey: "" })).toThrow("OpenAI API key cannot be empty")
+	})
+
+	// kilocode_change start - Add test for production embedding model
+	it("should use specified embedding model", () => {
+		const customEnhancer = new LangChainContextEnhancer({
+			...testConfig,
+			modelName: "text-embedding-3-large"
 		})
-		expect(openaiEnhancer.getConfig().useOpenAI).toBe(true)
-		expect(openaiEnhancer.getConfig().openaiApiKey).toBe("test-key")
+		expect(customEnhancer.getConfig().modelName).toBe("text-embedding-3-large")
 	})
 	// kilocode_change end
 })
