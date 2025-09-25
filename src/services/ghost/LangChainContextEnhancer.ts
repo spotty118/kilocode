@@ -2,50 +2,132 @@
 import * as vscode from "vscode"
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { Document } from "@langchain/core/documents"
+import { OpenAIEmbeddings } from "@langchain/openai"
+import { VectorStore } from "@langchain/core/vectorstores"
 import { GhostSuggestionContext } from "./types"
 
-// Simplified interface for vector store functionality
-interface VectorDocument {
-	pageContent: string
-	metadata: {
-		filePath: string
-		chunkIndex: number
-		language: string
-	}
-}
+// kilocode_change start - Add mock embeddings for fallback
+import { Embeddings } from "@langchain/core/embeddings"
 
-interface SearchResult {
-	document: VectorDocument
-	score: number
+/**
+ * Mock embeddings implementation for fallback when no OpenAI key is available
+ */
+class MockEmbeddings extends Embeddings {
+	constructor() {
+		super({})
+	}
+
+	async embedDocuments(documents: string[]): Promise<number[][]> {
+		// Simple hash-based embeddings for basic similarity
+		return documents.map(doc => this.hashToVector(doc))
+	}
+
+	async embedQuery(query: string): Promise<number[]> {
+		return this.hashToVector(query)
+	}
+
+	private hashToVector(text: string): number[] {
+		const vector: number[] = new Array(384).fill(0) // 384-dimensional vector
+		const words = text.toLowerCase().split(/\s+/)
+		
+		for (let i = 0; i < words.length; i++) {
+			const word = words[i]
+			for (let j = 0; j < word.length; j++) {
+				const charCode = word.charCodeAt(j)
+				const index = (charCode + i + j) % vector.length
+				vector[index] += 1 / (word.length + 1)
+			}
+		}
+		
+		// Normalize vector
+		const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
+		return magnitude > 0 ? vector.map(val => val / magnitude) : vector
+	}
 }
 
 /**
- * Simple in-memory vector store implementation
- * This is a minimal implementation for demo purposes
+ * Simple in-memory vector store implementation using LangChain base class
  */
-class SimpleMemoryVectorStore {
-	private documents: VectorDocument[] = []
+class SimpleMemoryVectorStore extends VectorStore {
+	private documents: Document[] = []
+	private vectors: number[][] = []
 
-	async addDocuments(docs: VectorDocument[]): Promise<void> {
-		this.documents.push(...docs)
+	_vectorstoreType(): string {
+		return "simple_memory"
 	}
 
-	async similaritySearchWithScore(query: string, limit: number): Promise<Array<[VectorDocument, number]>> {
-		// Simple text similarity based on common words
-		const queryWords = query.toLowerCase().split(/\s+/)
-		
-		const results = this.documents.map((doc): [VectorDocument, number] => {
-			const docWords = doc.pageContent.toLowerCase().split(/\s+/)
-			const commonWords = queryWords.filter((word) => docWords.includes(word))
-			const score = commonWords.length / Math.max(queryWords.length, docWords.length)
-			return [doc, score]
-		})
+	constructor(embeddings: Embeddings) {
+		super(embeddings, {})
+	}
 
-		return results
-			.sort(([, a], [, b]) => b - a)
-			.slice(0, limit)
+	async addDocuments(documents: Document[]): Promise<void> {
+		const texts = documents.map(doc => doc.pageContent)
+		const vectors = await this.embeddings.embedDocuments(texts)
+		
+		this.documents.push(...documents)
+		this.vectors.push(...vectors)
+	}
+
+	async addVectors(vectors: number[][], documents: Document[]): Promise<void> {
+		this.vectors.push(...vectors)
+		this.documents.push(...documents)
+	}
+
+	async similaritySearchVectorWithScore(query: number[], k: number): Promise<Array<[Document, number]>> {
+		const similarities = this.vectors.map((vector, index) => ({
+			document: this.documents[index],
+			similarity: this.cosineSimilarity(query, vector),
+			index
+		}))
+
+		return similarities
+			.sort((a, b) => b.similarity - a.similarity)
+			.slice(0, k)
+			.map(item => [item.document, item.similarity])
+	}
+
+	async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
+		const queryVector = await this.embeddings.embedQuery(query)
+		return this.similaritySearchVectorWithScore(queryVector, k)
+	}
+
+	async similaritySearch(query: string, k: number): Promise<Document[]> {
+		const results = await this.similaritySearchWithScore(query, k)
+		return results.map(([doc]) => doc)
+	}
+
+	private cosineSimilarity(a: number[], b: number[]): number {
+		if (a.length !== b.length) return 0
+		
+		let dotProduct = 0
+		let normA = 0
+		let normB = 0
+		
+		for (let i = 0; i < a.length; i++) {
+			dotProduct += a[i] * b[i]
+			normA += a[i] * a[i]
+			normB += b[i] * b[i]
+		}
+		
+		const denominator = Math.sqrt(normA) * Math.sqrt(normB)
+		return denominator === 0 ? 0 : dotProduct / denominator
+	}
+
+	static async fromTexts(
+		texts: string[],
+		metadatas: object[],
+		embeddings: Embeddings
+	): Promise<SimpleMemoryVectorStore> {
+		const store = new SimpleMemoryVectorStore(embeddings)
+		const documents = texts.map((text, i) => new Document({
+			pageContent: text,
+			metadata: metadatas[i] || {}
+		}))
+		await store.addDocuments(documents)
+		return store
 	}
 }
+// kilocode_change end
 
 /**
  * Configuration for LangChain context enhancement features
@@ -56,6 +138,8 @@ export interface LangChainContextConfig {
 	chunkOverlap: number
 	maxContextFiles: number
 	similarityThreshold: number
+	openaiApiKey?: string // kilocode_change - Add OpenAI API key for embeddings
+	useOpenAI?: boolean // kilocode_change - Allow disabling OpenAI embeddings for local-only operation
 }
 
 /**
@@ -78,7 +162,8 @@ export interface LangChainEnhancedContext {
 export class LangChainContextEnhancer {
 	private config: LangChainContextConfig
 	private textSplitter: RecursiveCharacterTextSplitter
-	private vectorStore: SimpleMemoryVectorStore | null = null
+	private vectorStore: SimpleMemoryVectorStore | null = null // kilocode_change - Use real LangChain-based MemoryVectorStore
+	private embeddings: OpenAIEmbeddings | MockEmbeddings | null = null // kilocode_change - Add real OpenAI embeddings
 	private isInitialized = false
 
 	constructor(config?: Partial<LangChainContextConfig>) {
@@ -87,7 +172,8 @@ export class LangChainContextEnhancer {
 			chunkSize: 1000,
 			chunkOverlap: 200,
 			maxContextFiles: 10,
-			similarityThreshold: 0.1, // Lower threshold for simple similarity
+			similarityThreshold: 0.7, // kilocode_change - Higher threshold for real embeddings
+			useOpenAI: true, // kilocode_change - Default to using OpenAI embeddings
 			...config,
 		}
 
@@ -106,7 +192,22 @@ export class LangChainContextEnhancer {
 		}
 
 		try {
-			this.vectorStore = new SimpleMemoryVectorStore()
+			// kilocode_change start - Initialize real LangChain embeddings and vector store
+			if (this.config.useOpenAI && this.config.openaiApiKey) {
+				this.embeddings = new OpenAIEmbeddings({
+					openAIApiKey: this.config.openaiApiKey,
+					modelName: "text-embedding-3-small", // Cost-effective embedding model
+				})
+			} else {
+				// Fallback to a simple text-based approach if no OpenAI key provided
+				console.warn("[LangChainContextEnhancer] No OpenAI API key provided, falling back to text-based similarity")
+				this.embeddings = new MockEmbeddings()
+			}
+
+			// Create empty vector store initially 
+			this.vectorStore = new SimpleMemoryVectorStore(this.embeddings)
+			// kilocode_change end
+			
 			this.isInitialized = true
 		} catch (error) {
 			console.warn("[LangChainContextEnhancer] Failed to initialize vector store:", error)
@@ -128,7 +229,8 @@ export class LangChainContextEnhancer {
 		}
 
 		try {
-			const vectorDocs: VectorDocument[] = []
+			// kilocode_change start - Use real LangChain documents and vector store
+			const langchainDocs: Document[] = []
 
 			for (const doc of documents.slice(0, this.config.maxContextFiles)) {
 				if (doc.uri.scheme !== "file" || doc.getText().trim().length === 0) {
@@ -137,20 +239,21 @@ export class LangChainContextEnhancer {
 
 				const chunks = await this.textSplitter.splitText(doc.getText())
 				for (let i = 0; i < chunks.length; i++) {
-					vectorDocs.push({
+					langchainDocs.push(new Document({
 						pageContent: chunks[i],
 						metadata: {
 							filePath: doc.uri.fsPath,
 							chunkIndex: i,
 							language: doc.languageId,
 						},
-					})
+					}))
 				}
 			}
 
-			if (vectorDocs.length > 0) {
-				await this.vectorStore.addDocuments(vectorDocs)
+			if (langchainDocs.length > 0) {
+				await this.vectorStore.addDocuments(langchainDocs)
 			}
+			// kilocode_change end
 		} catch (error) {
 			console.warn("[LangChainContextEnhancer] Failed to index documents:", error)
 		}
@@ -174,16 +277,17 @@ export class LangChainContextEnhancer {
 				return null
 			}
 
-			// Perform similarity search
+			// kilocode_change start - Use real LangChain similarity search
 			const relevantDocs = await this.vectorStore.similaritySearchWithScore(searchQuery, 5)
 
 			const relevantCodeChunks = relevantDocs
 				.filter(([, score]) => score >= this.config.similarityThreshold)
 				.map(([doc, score]) => ({
 					content: doc.pageContent,
-					filePath: doc.metadata.filePath,
+					filePath: doc.metadata.filePath as string,
 					similarity: score,
 				}))
+			// kilocode_change end
 
 			const relatedFiles = Array.from(new Set(relevantCodeChunks.map((chunk) => chunk.filePath)))
 
@@ -273,11 +377,13 @@ export class LangChainContextEnhancer {
 			})
 		}
 
-		// Reset vector store if disabled
-		if (newConfig.enabled === false) {
+		// kilocode_change start - Reset vector store if embeddings config changed
+		if (newConfig.enabled === false || newConfig.openaiApiKey !== undefined || newConfig.useOpenAI !== undefined) {
 			this.vectorStore = null
+			this.embeddings = null
 			this.isInitialized = false
 		}
+		// kilocode_change end
 	}
 
 	/**

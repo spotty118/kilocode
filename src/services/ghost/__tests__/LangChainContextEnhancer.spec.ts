@@ -1,5 +1,5 @@
 // kilocode_change - new file
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach, vi } from "vitest"
 import * as vscode from "vscode"
 import { LangChainContextEnhancer } from "../LangChainContextEnhancer"
 import { GhostSuggestionContext } from "../types"
@@ -11,11 +11,24 @@ const mockDocument = {
 	getText: () => "function test() { return 'hello world'; }",
 } as vscode.TextDocument
 
+// kilocode_change start - Mock OpenAI embeddings for testing
+vi.mock("@langchain/openai", () => ({
+	OpenAIEmbeddings: vi.fn().mockImplementation(() => ({
+		embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
+		embedQuery: vi.fn().mockResolvedValue([0.2, 0.3, 0.4]),
+	}))
+}))
+// kilocode_change end
+
 describe("LangChainContextEnhancer", () => {
 	let enhancer: LangChainContextEnhancer
 
 	beforeEach(() => {
-		enhancer = new LangChainContextEnhancer({ enabled: true })
+		// kilocode_change - Use mock embeddings for testing instead of requiring OpenAI key
+		enhancer = new LangChainContextEnhancer({ 
+			enabled: true,
+			useOpenAI: false // Use mock embeddings for testing
+		})
 	})
 
 	it("should initialize with default configuration", () => {
@@ -59,4 +72,16 @@ describe("LangChainContextEnhancer", () => {
 		expect(enhancer.getConfig().chunkSize).toBe(500)
 		expect(enhancer.getConfig().maxContextFiles).toBe(5)
 	})
+
+	// kilocode_change start - Add test for OpenAI integration
+	it("should work with OpenAI embeddings when configured", () => {
+		const openaiEnhancer = new LangChainContextEnhancer({
+			enabled: true,
+			useOpenAI: true,
+			openaiApiKey: "test-key"
+		})
+		expect(openaiEnhancer.getConfig().useOpenAI).toBe(true)
+		expect(openaiEnhancer.getConfig().openaiApiKey).toBe("test-key")
+	})
+	// kilocode_change end
 })

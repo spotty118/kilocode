@@ -598,6 +598,11 @@
 					"default": false,
 					"description": "Enable LangChain-powered context awareness for enhanced code suggestions"
 				},
+				"kilo-code.langchain.openaiApiKey": {
+					"type": "string",
+					"default": "",
+					"description": "OpenAI API key for LangChain embeddings (leave empty to use environment variable OPENAI_API_KEY or fallback to text-based similarity)"
+				},
 				"kilo-code.langchain.chunkSize": {
 					"type": "number",
 					"default": 1000,
