@@ -24,11 +24,16 @@ class ProductionMemoryVectorStore extends VectorStore {
 	}
 
 	async addDocuments(documents: Document[]): Promise<void> {
-		const texts = documents.map(doc => doc.pageContent)
-		const vectors = await this.embeddings.embedDocuments(texts)
-		
-		this.documents.push(...documents)
-		this.vectors.push(...vectors)
+		try {
+			const texts = documents.map(doc => doc.pageContent)
+			const vectors = await this.embeddings.embedDocuments(texts)
+			
+			this.documents.push(...documents)
+			this.vectors.push(...vectors)
+		} catch (error) {
+			console.error("[ProductionMemoryVectorStore] Failed to add documents:", error)
+			throw error
+		}
 	}
 
 	async addVectors(vectors: number[][], documents: Document[]): Promise<void> {
@@ -50,8 +55,13 @@ class ProductionMemoryVectorStore extends VectorStore {
 	}
 
 	override async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
-		const queryVector = await this.embeddings.embedQuery(query)
-		return this.similaritySearchVectorWithScore(queryVector, k)
+		try {
+			const queryVector = await this.embeddings.embedQuery(query)
+			return this.similaritySearchVectorWithScore(queryVector, k)
+		} catch (error) {
+			console.error("[ProductionMemoryVectorStore] Failed to perform similarity search:", error)
+			return []
+		}
 	}
 
 	override async similaritySearch(query: string, k: number): Promise<Document[]> {
@@ -334,6 +344,23 @@ export class LangChainContextEnhancer {
 		// kilocode_change start - Validate API key if being updated
 		if (newConfig.openaiApiKey !== undefined && !newConfig.openaiApiKey) {
 			throw new Error("OpenAI API key cannot be empty")
+		}
+		
+		// Validate numeric values
+		if (newConfig.chunkSize !== undefined && (newConfig.chunkSize < 100 || newConfig.chunkSize > 4000)) {
+			throw new Error("Chunk size must be between 100 and 4000")
+		}
+		
+		if (newConfig.chunkOverlap !== undefined && (newConfig.chunkOverlap < 0 || newConfig.chunkOverlap > 1000)) {
+			throw new Error("Chunk overlap must be between 0 and 1000")
+		}
+		
+		if (newConfig.maxContextFiles !== undefined && (newConfig.maxContextFiles < 1 || newConfig.maxContextFiles > 50)) {
+			throw new Error("Max context files must be between 1 and 50")
+		}
+		
+		if (newConfig.similarityThreshold !== undefined && (newConfig.similarityThreshold < 0 || newConfig.similarityThreshold > 1)) {
+			throw new Error("Similarity threshold must be between 0 and 1")
 		}
 		// kilocode_change end
 

@@ -1,13 +1,13 @@
 import * as vscode from "vscode"
 import { GhostSuggestionContext } from "./types"
 import { GhostDocumentStore } from "./GhostDocumentStore"
-import { LangChainContextEnhancer, type LangChainEnhancedContext } from "./LangChainContextEnhancer" // kilocode_change
+import { LangChainContextEnhancer, type LangChainEnhancedContext, type LangChainContextConfig } from "./LangChainContextEnhancer" // kilocode_change
 
 export class GhostContext {
 	private documentStore: GhostDocumentStore
 	private langChainEnhancer: LangChainContextEnhancer | null = null // kilocode_change
 
-	constructor(documentStore: GhostDocumentStore, enableLangChain = false, langChainConfig?: Partial<LangChainContextEnhancer['config']>) { // kilocode_change
+	constructor(documentStore: GhostDocumentStore, enableLangChain = false, langChainConfig?: Partial<LangChainContextConfig>) { // kilocode_change
 		this.documentStore = documentStore
 		// kilocode_change start
 		if (enableLangChain) {
@@ -33,6 +33,8 @@ export class GhostContext {
 				})
 			} catch (error) {
 				console.error("[GhostContext] Failed to initialize LangChain enhancer:", error)
+				// Don't throw - continue with LangChain disabled
+				this.langChainEnhancer = null
 			}
 		}
 		// kilocode_change end
@@ -161,7 +163,7 @@ export class GhostContext {
 	/**
 	 * Update LangChain configuration
 	 */
-	public updateLangChainConfig(config: Parameters<LangChainContextEnhancer['updateConfig']>[0]): void {
+	public updateLangChainConfig(config: Partial<LangChainContextConfig>): void {
 		if (this.langChainEnhancer) {
 			this.langChainEnhancer.updateConfig(config)
 		}
