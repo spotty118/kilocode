@@ -42,6 +42,10 @@ class ProductionMemoryVectorStore extends VectorStore {
 	}
 
 	async similaritySearchVectorWithScore(query: number[], k: number): Promise<Array<[Document, number]>> {
+		if (this.vectors.length === 0 || this.documents.length === 0) {
+			return []
+		}
+
 		const similarities = this.vectors.map((vector, index) => ({
 			document: this.documents[index],
 			similarity: this.cosineSimilarity(query, vector),

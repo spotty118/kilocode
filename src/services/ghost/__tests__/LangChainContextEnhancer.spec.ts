@@ -120,4 +120,48 @@ describe("LangChainContextEnhancer", () => {
 		expect(customEnhancer.getConfig().modelName).toBe("text-embedding-3-large")
 	})
 	// kilocode_change end
+
+	// kilocode_change start - Add comprehensive integration test
+	it("should provide complete enhanced context integration", async () => {
+		const documents = [mockDocument]
+		await enhancer.indexWorkspaceDocuments(documents)
+
+		// Mock vscode classes
+		const mockRange = {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 10 },
+			isEmpty: false,
+			isSingleLine: true,
+			contains: () => false,
+			isEqual: () => false,
+			intersection: () => undefined,
+			union: () => mockRange,
+			with: () => mockRange,
+		} as any
+
+		const context: GhostSuggestionContext = {
+			document: mockDocument,
+			userInput: "test function",
+			range: mockRange,
+		}
+
+		const enhancedContext = await enhancer.enhanceContext(context, "test function implementation")
+		
+		// Verify enhanced context structure
+		expect(enhancedContext).not.toBeNull()
+		if (enhancedContext) {
+			expect(enhancedContext).toHaveProperty('relevantCodeChunks')
+			expect(enhancedContext).toHaveProperty('contextSummary')  
+			expect(enhancedContext).toHaveProperty('relatedFiles')
+			
+			expect(Array.isArray(enhancedContext.relevantCodeChunks)).toBe(true)
+			expect(Array.isArray(enhancedContext.relatedFiles)).toBe(true)
+			expect(typeof enhancedContext.contextSummary).toBe('string')
+			
+			// Verify the context summary contains expected information
+			expect(enhancedContext.contextSummary).toContain("Current file:")
+			expect(enhancedContext.contextSummary).toContain("/test/file.ts")
+		}
+	})
+	// kilocode_change end
 })
