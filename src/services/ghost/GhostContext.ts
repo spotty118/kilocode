@@ -1,12 +1,19 @@
 import * as vscode from "vscode"
 import { GhostSuggestionContext } from "./types"
 import { GhostDocumentStore } from "./GhostDocumentStore"
+import { LangChainContextEnhancer, type LangChainEnhancedContext } from "./LangChainContextEnhancer" // kilocode_change
 
 export class GhostContext {
 	private documentStore: GhostDocumentStore
+	private langChainEnhancer: LangChainContextEnhancer | null = null // kilocode_change
 
-	constructor(documentStore: GhostDocumentStore) {
+	constructor(documentStore: GhostDocumentStore, enableLangChain = false) { // kilocode_change
 		this.documentStore = documentStore
+		// kilocode_change start
+		if (enableLangChain) {
+			this.langChainEnhancer = new LangChainContextEnhancer()
+		}
+		// kilocode_change end
 	}
 
 	private addRecentOperations(context: GhostSuggestionContext): GhostSuggestionContext {
@@ -96,6 +103,46 @@ export class GhostContext {
 		context = this.addRangeASTNode(context)
 		context = this.addRecentOperations(context)
 		context = this.addDiagnostics(context)
+
+		// kilocode_change start
+		// Index workspace documents for LangChain if enabled
+		if (this.langChainEnhancer && context.openFiles) {
+			await this.langChainEnhancer.indexWorkspaceDocuments(context.openFiles)
+		}
+		// kilocode_change end
+
 		return context
 	}
+
+	// kilocode_change start
+	/**
+	 * Gets enhanced context using LangChain if available
+	 * This is an optional method that doesn't affect existing functionality
+	 */
+	public async getEnhancedContext(
+		context: GhostSuggestionContext,
+		query?: string,
+	): Promise<LangChainEnhancedContext | null> {
+		if (!this.langChainEnhancer) {
+			return null
+		}
+		return await this.langChainEnhancer.enhanceContext(context, query)
+	}
+
+	/**
+	 * Check if LangChain enhancement is available
+	 */
+	public hasLangChainEnhancement(): boolean {
+		return this.langChainEnhancer !== null && this.langChainEnhancer.isReady()
+	}
+
+	/**
+	 * Update LangChain configuration
+	 */
+	public updateLangChainConfig(config: Parameters<LangChainContextEnhancer['updateConfig']>[0]): void {
+		if (this.langChainEnhancer) {
+			this.langChainEnhancer.updateConfig(config)
+		}
+	}
+	// kilocode_change end
 }

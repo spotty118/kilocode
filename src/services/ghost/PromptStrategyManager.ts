@@ -1,6 +1,7 @@
 import { GhostSuggestionContext } from "./types"
 import { PromptStrategy } from "./types/PromptStrategy"
 import { ContextAnalyzer } from "./ContextAnalyzer"
+import { LangChainEnhancedContext } from "./LangChainContextEnhancer" // kilocode_change
 
 // Import all strategies
 import { UserRequestStrategy } from "./strategies/UserRequestStrategy"
@@ -80,17 +81,42 @@ export class PromptStrategyManager {
 	/**
 	 * Builds complete prompts using the selected strategy
 	 * @param context The suggestion context
+	 * @param enhancedContext Optional LangChain enhanced context
 	 * @returns Object containing system and user prompts
 	 */
-	buildPrompt(context: GhostSuggestionContext): {
+	buildPrompt(
+		context: GhostSuggestionContext,
+		enhancedContext?: LangChainEnhancedContext | null, // kilocode_change
+	): {
 		systemPrompt: string
 		userPrompt: string
 		strategy: PromptStrategy
 	} {
 		const strategy = this.selectStrategy(context)
 
-		const systemPrompt = strategy.getSystemInstructions()
-		const userPrompt = strategy.getUserPrompt(context)
+		let systemPrompt = strategy.getSystemInstructions()
+		let userPrompt = strategy.getUserPrompt(context)
+
+		// kilocode_change start
+		// Enhance prompts with LangChain context if available
+		if (enhancedContext && enhancedContext.relevantCodeChunks.length > 0) {
+			systemPrompt += "\n\n## Additional Context from LangChain Analysis\n"
+			systemPrompt += `Context Summary: ${enhancedContext.contextSummary}\n`
+			systemPrompt += "Relevant code chunks from related files:\n"
+
+			enhancedContext.relevantCodeChunks.slice(0, 3).forEach((chunk, index) => {
+				systemPrompt += `\n### Related Code ${index + 1} (${chunk.filePath}):\n`
+				systemPrompt += "```\n" + chunk.content + "\n```\n"
+			})
+
+			if (this.debug) {
+				console.log("[PromptStrategyManager] Enhanced with LangChain context:", {
+					chunksCount: enhancedContext.relevantCodeChunks.length,
+					relatedFiles: enhancedContext.relatedFiles.length,
+				})
+			}
+		}
+		// kilocode_change end
 
 		if (this.debug) {
 			console.log("[PromptStrategyManager] Prompt built:", {

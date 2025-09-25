@@ -1,6 +1,7 @@
 import { GhostSuggestionContext } from "./types"
 import { GhostStreamingParser, StreamingParseResult } from "./GhostStreamingParser"
 import { PromptStrategyManager } from "./PromptStrategyManager"
+import { LangChainEnhancedContext } from "./LangChainContextEnhancer" // kilocode_change
 
 export class GhostStrategy {
 	private streamingParser: GhostStreamingParser
@@ -17,8 +18,8 @@ export class GhostStrategy {
 	 * Get the system prompt based on context using the new strategy system
 	 * Overloaded to support both new context-based and legacy string-only calls
 	 */
-	getSystemPrompt(context: GhostSuggestionContext): string {
-		const { systemPrompt, strategy } = this.strategyManager.buildPrompt(context)
+	getSystemPrompt(context: GhostSuggestionContext, enhancedContext?: LangChainEnhancedContext | null): string { // kilocode_change
+		const { systemPrompt, strategy } = this.strategyManager.buildPrompt(context, enhancedContext) // kilocode_change
 		if (this.debug) {
 			console.log(`[GhostStrategy] Using strategy: ${strategy.name}`)
 		}
@@ -28,10 +29,11 @@ export class GhostStrategy {
 	/**
 	 * Get the user prompt based on context using the new strategy system
 	 * @param context The suggestion context
+	 * @param enhancedContext Optional LangChain enhanced context
 	 * @returns The user prompt
 	 */
-	getSuggestionPrompt(context: GhostSuggestionContext): string {
-		const { userPrompt, strategy } = this.strategyManager.buildPrompt(context)
+	getSuggestionPrompt(context: GhostSuggestionContext, enhancedContext?: LangChainEnhancedContext | null): string { // kilocode_change
+		const { userPrompt, strategy } = this.strategyManager.buildPrompt(context, enhancedContext) // kilocode_change
 
 		if (this.debug) {
 			console.log(`[GhostStrategy] Generated prompt with strategy: ${strategy.name}`)
