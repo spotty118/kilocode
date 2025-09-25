@@ -7,11 +7,22 @@ export class GhostContext {
 	private documentStore: GhostDocumentStore
 	private langChainEnhancer: LangChainContextEnhancer | null = null // kilocode_change
 
-	constructor(documentStore: GhostDocumentStore, enableLangChain = false) { // kilocode_change
+	constructor(documentStore: GhostDocumentStore, enableLangChain = false, langChainConfig?: any) { // kilocode_change
 		this.documentStore = documentStore
 		// kilocode_change start
 		if (enableLangChain) {
-			this.langChainEnhancer = new LangChainContextEnhancer()
+			// Get OpenAI API key from VSCode configuration or environment
+			const openaiApiKey = vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.openaiApiKey") || 
+							   process.env.OPENAI_API_KEY
+
+			this.langChainEnhancer = new LangChainContextEnhancer({
+				enabled: true,
+				chunkSize: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkSize") || 1000,
+				maxContextFiles: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.maxContextFiles") || 10,
+				useOpenAI: !!openaiApiKey,
+				openaiApiKey,
+				...langChainConfig
+			})
 		}
 		// kilocode_change end
 	}

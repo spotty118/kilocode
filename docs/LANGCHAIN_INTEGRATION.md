@@ -4,13 +4,15 @@ This document describes the LangChain integration added to Kilo Code for enhance
 
 ## Overview
 
-The LangChain integration provides an optional enhancement to the existing Ghost suggestion system. It adds semantic context understanding by indexing workspace documents and providing relevant code chunks during suggestion generation.
+The LangChain integration provides an optional enhancement to the existing Ghost suggestion system. It adds semantic context understanding by indexing workspace documents and providing relevant code chunks during suggestion generation using **real LangChain components** instead of mock implementations. <!-- kilocode_change -->
 
 ## Key Features
 
 - **Non-breaking integration**: The existing context system continues to work unchanged
 - **Optional enhancement**: Can be enabled/disabled via VS Code settings
-- **Semantic code search**: Uses text similarity to find relevant code chunks
+- **Real LangChain components**: Uses actual LangChain embeddings and vector stores for semantic search <!-- kilocode_change -->
+- **OpenAI embeddings support**: Configurable OpenAI API key for high-quality embeddings <!-- kilocode_change -->
+- **Intelligent fallback**: Falls back to text-based similarity when no OpenAI key is provided <!-- kilocode_change -->
 - **Context-aware prompts**: Enhances AI prompts with related code from other files
 
 ## Architecture
