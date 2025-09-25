@@ -26,9 +26,9 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 
 		// Create mock document
 		const mockDocument = {
-			getText: vi.fn().mockReturnValue("function mutliply(<<<AUTOCOMPLETE_HERE>>>>"),
+			getText: vi.fn().mockReturnValue("function multiply(<<<AUTOCOMPLETE_HERE>>>>"),
 			uri: { fsPath: "/test/file.ts", toString: () => "file:///test/file.ts" } as vscode.Uri,
-			offsetAt: vi.fn().mockReturnValue(17), // Position after "function mutliply("
+			offsetAt: vi.fn().mockReturnValue(17), // Position after "function multiply("
 		} as unknown as vscode.TextDocument
 
 		mockContext = {
@@ -41,8 +41,8 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 
 	describe("sanitizeXMLConservative", () => {
 		it("should fix incomplete closing tag </change without > when stream is complete", () => {
-			const incompleteXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+			const incompleteXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace></change`
 
 			// First chunk - should not sanitize yet (stream not complete)
@@ -58,13 +58,13 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 			expect(parser.getCompletedChanges()).toHaveLength(1)
 
 			const change = parser.getCompletedChanges()[0]
-			expect(change.search).toBe("function mutliply(<<<AUTOCOMPLETE_HERE>>>>\n")
-			expect(change.replace).toBe("function mutliply(a, b) {\n")
+			expect(change.search).toBe("function multiply(<<<AUTOCOMPLETE_HERE>>>>\n")
+			expect(change.replace).toBe("function multiply(a, b) {\n")
 		})
 
 		it("should add missing </change> tag entirely when stream is complete", () => {
-			const incompleteXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+			const incompleteXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace>`
 
 			// First chunk - should not sanitize yet (stream not complete)
@@ -80,13 +80,13 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 			expect(parser.getCompletedChanges()).toHaveLength(1)
 
 			const change = parser.getCompletedChanges()[0]
-			expect(change.search).toBe("function mutliply(<<<AUTOCOMPLETE_HERE>>>>\n")
-			expect(change.replace).toBe("function mutliply(a, b) {\n")
+			expect(change.search).toBe("function multiply(<<<AUTOCOMPLETE_HERE>>>>\n")
+			expect(change.replace).toBe("function multiply(a, b) {\n")
 		})
 
 		it("should not fix when search/replace pairs are incomplete", () => {
-			const incompleteXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+			const incompleteXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></change`
 
 			const result = parser.processChunk(incompleteXML)
@@ -107,8 +107,8 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 		})
 
 		it("should not fix when buffer ends with incomplete tag marker", () => {
-			const incompleteXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+			const incompleteXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace><`
 
 			const result = parser.processChunk(incompleteXML)
@@ -120,11 +120,11 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 
 		it("should not apply sanitization during active streaming", () => {
 			// Simulate streaming chunks
-			let result = parser.processChunk(`<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>`)
+			let result = parser.processChunk(`<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>`)
 			expect(result.hasNewSuggestions).toBe(false)
 			expect(result.isComplete).toBe(false)
 
-			result = parser.processChunk(`]]></search><replace><![CDATA[function mutliply(a, b) {`)
+			result = parser.processChunk(`]]></search><replace><![CDATA[function multiply(a, b) {`)
 			expect(result.hasNewSuggestions).toBe(false)
 			expect(result.isComplete).toBe(false)
 
@@ -140,8 +140,8 @@ describe("GhostStreamingParser - XML Sanitization", () => {
 		})
 
 		it("should handle already complete XML without modification", () => {
-			const completeXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+			const completeXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace></change>`
 
 			const result = parser.processChunk(completeXML)

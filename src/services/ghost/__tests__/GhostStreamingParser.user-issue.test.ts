@@ -26,9 +26,9 @@ describe("GhostStreamingParser - User Issue Fix", () => {
 
 		// Create mock document with the exact content from user's issue
 		const mockDocument = {
-			getText: vi.fn().mockReturnValue("function mutliply(<<<AUTOCOMPLETE_HERE>>>>"),
+			getText: vi.fn().mockReturnValue("function multiply(<<<AUTOCOMPLETE_HERE>>>>"),
 			uri: { fsPath: "/test/file.ts", toString: () => "file:///test/file.ts" } as vscode.Uri,
-			offsetAt: vi.fn().mockReturnValue(17), // Position after "function mutliply("
+			offsetAt: vi.fn().mockReturnValue(17), // Position after "function multiply("
 		} as unknown as vscode.TextDocument
 
 		mockContext = {
@@ -41,8 +41,8 @@ describe("GhostStreamingParser - User Issue Fix", () => {
 
 	it("should fix the exact user issue: incomplete </change tag when stream is complete", () => {
 		// This is the exact XML from the user's issue
-		const userIssueXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+		const userIssueXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace></change`
 
 		// First chunk - should not sanitize yet (stream not complete)
@@ -59,8 +59,8 @@ describe("GhostStreamingParser - User Issue Fix", () => {
 		expect(parser.getCompletedChanges()).toHaveLength(1)
 
 		const change = parser.getCompletedChanges()[0]
-		expect(change.search).toBe("function mutliply(<<<AUTOCOMPLETE_HERE>>>>\n")
-		expect(change.replace).toBe("function mutliply(a, b) {\n")
+		expect(change.search).toBe("function multiply(<<<AUTOCOMPLETE_HERE>>>>\n")
+		expect(change.replace).toBe("function multiply(a, b) {\n")
 
 		// Verify the buffer was sanitized correctly
 		expect(parser.getBuffer()).toContain("</change>")
@@ -68,8 +68,8 @@ describe("GhostStreamingParser - User Issue Fix", () => {
 
 	it("should handle the case where the XML is completely missing the closing > when stream is complete", () => {
 		// Even more broken XML - missing the final ">" entirely
-		const brokenXML = `<change><search><![CDATA[function mutliply(<<<AUTOCOMPLETE_HERE>>>>
-]]></search><replace><![CDATA[function mutliply(a, b) {
+		const brokenXML = `<change><search><![CDATA[function multiply(<<<AUTOCOMPLETE_HERE>>>>
+]]></search><replace><![CDATA[function multiply(a, b) {
 ]]></replace></change`
 
 		// First chunk - should not sanitize yet
