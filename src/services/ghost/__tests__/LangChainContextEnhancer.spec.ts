@@ -11,15 +11,7 @@ const mockDocument = {
 	getText: () => "function test() { return 'hello world'; }",
 } as vscode.TextDocument
 
-// kilocode_change start - Mock OpenAI embeddings and LangChain for testing
-vi.mock("@langchain/openai", () => ({
-	OpenAIEmbeddings: vi.fn().mockImplementation(() => ({
-		embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
-		embedQuery: vi.fn().mockResolvedValue([0.2, 0.3, 0.4]),
-	}))
-}))
-
-// kilocode_change start - Mock OpenAI embeddings for testing - no need to mock vector store as it's implemented in-file
+// kilocode_change start - Mock OpenAI embeddings for testing
 vi.mock("@langchain/openai", () => ({
 	OpenAIEmbeddings: vi.fn().mockImplementation(() => ({
 		embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]),
@@ -28,7 +20,6 @@ vi.mock("@langchain/openai", () => ({
 }))
 
 // No need to mock ProductionMemoryVectorStore as it's implemented in the same file
-// kilocode_change end
 // kilocode_change end
 
 describe("LangChainContextEnhancer", () => {
@@ -98,6 +89,28 @@ describe("LangChainContextEnhancer", () => {
 		expect(() => enhancer.updateConfig({ openaiApiKey: "" })).toThrow("OpenAI API key cannot be empty")
 	})
 
+	// kilocode_change start - Add validation tests for other config parameters
+	it("should validate chunk size when updating config", () => {
+		expect(() => enhancer.updateConfig({ chunkSize: 50 })).toThrow("Chunk size must be between 100 and 4000")
+		expect(() => enhancer.updateConfig({ chunkSize: 5000 })).toThrow("Chunk size must be between 100 and 4000")
+	})
+
+	it("should validate chunk overlap when updating config", () => {
+		expect(() => enhancer.updateConfig({ chunkOverlap: -1 })).toThrow("Chunk overlap must be between 0 and 1000")
+		expect(() => enhancer.updateConfig({ chunkOverlap: 1500 })).toThrow("Chunk overlap must be between 0 and 1000")
+	})
+
+	it("should validate max context files when updating config", () => {
+		expect(() => enhancer.updateConfig({ maxContextFiles: 0 })).toThrow("Max context files must be between 1 and 50")
+		expect(() => enhancer.updateConfig({ maxContextFiles: 100 })).toThrow("Max context files must be between 1 and 50")
+	})
+
+	it("should validate similarity threshold when updating config", () => {
+		expect(() => enhancer.updateConfig({ similarityThreshold: -0.1 })).toThrow("Similarity threshold must be between 0 and 1")
+		expect(() => enhancer.updateConfig({ similarityThreshold: 1.5 })).toThrow("Similarity threshold must be between 0 and 1")
+	})
+	// kilocode_change end
+
 	// kilocode_change start - Add test for production embedding model
 	it("should use specified embedding model", () => {
 		const customEnhancer = new LangChainContextEnhancer({
@@ -105,6 +118,50 @@ describe("LangChainContextEnhancer", () => {
 			modelName: "text-embedding-3-large"
 		})
 		expect(customEnhancer.getConfig().modelName).toBe("text-embedding-3-large")
+	})
+	// kilocode_change end
+
+	// kilocode_change start - Add comprehensive integration test
+	it("should provide complete enhanced context integration", async () => {
+		const documents = [mockDocument]
+		await enhancer.indexWorkspaceDocuments(documents)
+
+		// Mock vscode classes
+		const mockRange = {
+			start: { line: 0, character: 0 },
+			end: { line: 0, character: 10 },
+			isEmpty: false,
+			isSingleLine: true,
+			contains: () => false,
+			isEqual: () => false,
+			intersection: () => undefined,
+			union: () => mockRange,
+			with: () => mockRange,
+		} as any
+
+		const context: GhostSuggestionContext = {
+			document: mockDocument,
+			userInput: "test function",
+			range: mockRange,
+		}
+
+		const enhancedContext = await enhancer.enhanceContext(context, "test function implementation")
+		
+		// Verify enhanced context structure
+		expect(enhancedContext).not.toBeNull()
+		if (enhancedContext) {
+			expect(enhancedContext).toHaveProperty('relevantCodeChunks')
+			expect(enhancedContext).toHaveProperty('contextSummary')  
+			expect(enhancedContext).toHaveProperty('relatedFiles')
+			
+			expect(Array.isArray(enhancedContext.relevantCodeChunks)).toBe(true)
+			expect(Array.isArray(enhancedContext.relatedFiles)).toBe(true)
+			expect(typeof enhancedContext.contextSummary).toBe('string')
+			
+			// Verify the context summary contains expected information
+			expect(enhancedContext.contextSummary).toContain("Current file:")
+			expect(enhancedContext.contextSummary).toContain("/test/file.ts")
+		}
 	})
 	// kilocode_change end
 })

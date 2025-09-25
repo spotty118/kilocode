@@ -84,6 +84,10 @@ export class GhostProvider {
 		vscode.window.onDidChangeTextEditorSelection(this.onDidChangeTextEditorSelection, this, context.subscriptions)
 		vscode.window.onDidChangeActiveTextEditor(this.onDidChangeActiveTextEditor, this, context.subscriptions)
 
+		// kilocode_change start - Listen for LangChain configuration changes
+		vscode.workspace.onDidChangeConfiguration(this.onDidChangeConfiguration, this, context.subscriptions)
+		// kilocode_change end
+
 		void this.load()
 
 		// Initialize cursor animation with settings after load
@@ -200,6 +204,41 @@ export class GhostProvider {
 		this.clearAutoTriggerTimer()
 		await this.render()
 	}
+
+	// kilocode_change start - Handle LangChain configuration changes
+	private async onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent): Promise<void> {
+		if (event.affectsConfiguration("kilo-code.langchain")) {
+			try {
+				const langChainEnabled = vscode.workspace.getConfiguration("kilo-code.langchain").get("enabled", false)
+				const openaiApiKey = vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.openaiApiKey") || process.env.OPENAI_API_KEY
+
+				if (langChainEnabled && openaiApiKey && this.ghostContext.hasLangChainEnhancement()) {
+					// Update existing LangChain configuration
+					this.ghostContext.updateLangChainConfig({
+						enabled: langChainEnabled,
+						chunkSize: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkSize") || 1000,
+						chunkOverlap: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkOverlap") || 200,
+						maxContextFiles: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.maxContextFiles") || 10,
+						similarityThreshold: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.similarityThreshold") || 0.7,
+						openaiApiKey,
+						modelName: vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.modelName") || "text-embedding-3-small",
+					})
+				} else if (langChainEnabled && openaiApiKey && !this.ghostContext.hasLangChainEnhancement()) {
+					// Recreate GhostContext with LangChain enabled
+					console.log("[GhostProvider] Enabling LangChain due to configuration change")
+					this.ghostContext = new GhostContext(this.documentStore, true)
+				} else if (!langChainEnabled && this.ghostContext.hasLangChainEnhancement()) {
+					// Disable LangChain
+					console.log("[GhostProvider] Disabling LangChain due to configuration change")
+					this.ghostContext.updateLangChainConfig({ enabled: false })
+				}
+			} catch (error) {
+				console.error("[GhostProvider] Failed to update LangChain configuration:", error)
+				vscode.window.showWarningMessage(`Failed to update LangChain configuration: ${error instanceof Error ? error.message : 'Unknown error'}`)
+			}
+		}
+	}
+	// kilocode_change end
 
 	public async promptCodeSuggestion() {
 		if (!this.enabled) {
