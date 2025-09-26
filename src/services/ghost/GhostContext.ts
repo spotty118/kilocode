@@ -185,17 +185,18 @@ export class GhostContext {
 
 	/**
 	 * Check if LangChain enhancement is available
+	 * kilocode_change - Updated to use isAvailable() instead of isReady() to handle async initialization
 	 */
 	public hasLangChainEnhancement(): boolean {
 		const hasEnhancer = this.langChainEnhancer !== null
-		const isReady = hasEnhancer ? this.langChainEnhancer!.isReady() : false
+		const isAvailable = hasEnhancer ? this.langChainEnhancer!.isAvailable() : false
 		console.log(
 			"[GhostContext] hasLangChainEnhancement check - enhancer exists:",
 			hasEnhancer,
-			"is ready:",
-			isReady,
+			"is available:",
+			isAvailable,
 		)
-		return hasEnhancer && isReady
+		return hasEnhancer && isAvailable
 	}
 
 	/**

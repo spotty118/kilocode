@@ -42,6 +42,7 @@ export class LangChainContextEnhancer {
 	private vectorStore: MemoryVectorStore | null = null // kilocode_change - Use LangChain in-memory vector store
 	private embeddings: OpenAIEmbeddings | null = null // kilocode_change - Only use OpenAI embeddings for production
 	private isInitialized = false
+	private initializationPromise: Promise<void> | null = null // kilocode_change - Track initialization promise
 
 	constructor(config: LangChainContextConfig) {
 		// kilocode_change - Make config required
@@ -67,10 +68,11 @@ export class LangChainContextEnhancer {
 			chunkOverlap: this.config.chunkOverlap,
 		})
 
-		// Initialize vector store immediately if enabled to ensure isReady() works correctly
+		// Initialize vector store immediately if enabled and track the promise // kilocode_change
 		if (this.config.enabled) {
-			void this.initializeVectorStore().catch((error) => {
+			this.initializationPromise = this.initializeVectorStore().catch((error) => {
 				console.error("[LangChainContextEnhancer] Failed to initialize vector store in constructor:", error)
+				throw error // Re-throw to mark initialization as failed
 			})
 		}
 	}
@@ -129,7 +131,16 @@ export class LangChainContextEnhancer {
 			return
 		}
 
-		await this.initializeVectorStore()
+		// kilocode_change - Wait for initialization to complete before proceeding
+		if (this.initializationPromise) {
+			try {
+				await this.initializationPromise
+			} catch (error) {
+				console.error("[LangChainContextEnhancer] Initialization failed:", error)
+				return
+			}
+		}
+
 		if (!this.vectorStore) {
 			console.log("[LangChainContextEnhancer] No vector store available after initialization")
 			return
@@ -191,8 +202,24 @@ export class LangChainContextEnhancer {
 			!!this.vectorStore,
 		)
 
-		if (!this.config.enabled || !this.vectorStore) {
-			console.log("[LangChainContextEnhancer] Skipping enhancement - not enabled or no vector store")
+		if (!this.config.enabled) {
+			console.log("[LangChainContextEnhancer] Skipping enhancement - not enabled")
+			return null
+		}
+
+		// kilocode_change - Wait for initialization to complete if still pending
+		if (this.initializationPromise && !this.isInitialized) {
+			try {
+				console.log("[LangChainContextEnhancer] Waiting for initialization to complete...")
+				await this.initializationPromise
+			} catch (error) {
+				console.error("[LangChainContextEnhancer] Initialization failed:", error)
+				return null
+			}
+		}
+
+		if (!this.vectorStore) {
+			console.log("[LangChainContextEnhancer] Skipping enhancement - no vector store available")
 			return null
 		}
 
@@ -359,6 +386,15 @@ export class LangChainContextEnhancer {
 			this.vectorStore = null
 			this.embeddings = null
 			this.isInitialized = false
+			this.initializationPromise = null // kilocode_change - Reset initialization promise
+		}
+
+		// kilocode_change - Re-initialize if enabled and config changed
+		if (this.config.enabled && !this.isInitialized && !this.initializationPromise) {
+			this.initializationPromise = this.initializeVectorStore().catch((error) => {
+				console.error("[LangChainContextEnhancer] Failed to re-initialize vector store:", error)
+				throw error
+			})
 		}
 		// kilocode_change end
 	}
@@ -372,8 +408,25 @@ export class LangChainContextEnhancer {
 
 	/**
 	 * Check if the enhancer is enabled and ready
+	 * kilocode_change - Updated to handle async initialization properly
 	 */
 	isReady(): boolean {
-		return this.config.enabled && this.isInitialized && this.vectorStore !== null
+		const ready = this.config.enabled && this.isInitialized && this.vectorStore !== null
+		console.log("[LangChainContextEnhancer] isReady check:", {
+			enabled: this.config.enabled,
+			isInitialized: this.isInitialized,
+			hasVectorStore: !!this.vectorStore,
+			hasInitPromise: !!this.initializationPromise,
+			ready,
+		})
+		return ready
+	}
+
+	/**
+	 * Check if the enhancer is available (enabled and either ready or initializing)
+	 * kilocode_change - New method to check if LangChain is available but may not be ready yet
+	 */
+	isAvailable(): boolean {
+		return this.config.enabled && (this.isInitialized || !!this.initializationPromise)
 	}
 }
