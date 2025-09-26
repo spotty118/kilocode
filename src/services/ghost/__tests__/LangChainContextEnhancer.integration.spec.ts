@@ -1,13 +1,13 @@
 // Real LangChain integration tests - NO MOCKS
-// These tests actually call the OpenAI API and require a valid OPENAI_API_KEY environment variable
+// These tests actually call the OpenAI API and require a valid OpenAI API key from any source
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import * as vscode from "vscode"
 import { LangChainContextEnhancer } from "../LangChainContextEnhancer"
 import { GhostSuggestionContext } from "../types"
+import { shouldSkipLangChainTests, getTestOpenAIApiKey } from "./api-key-utils" // kilocode_change
 
-// Check if we have a real OpenAI API key for integration testing
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.TEST_OPENAI_API_KEY
-const SKIP_INTEGRATION_TESTS = !OPENAI_API_KEY
+// Check if we have a real OpenAI API key for integration testing from any source
+const SKIP_INTEGRATION_TESTS = shouldSkipLangChainTests() // kilocode_change
 
 // Mock vscode document for testing
 const createMockDocument = (content: string, filePath: string): vscode.TextDocument =>
@@ -21,24 +21,28 @@ const createMockDocument = (content: string, filePath: string): vscode.TextDocum
 
 describe.skipIf(SKIP_INTEGRATION_TESTS)("LangChain Real API Integration Tests", () => {
 	let enhancer: LangChainContextEnhancer
-	const testConfig = {
-		enabled: true,
-		openaiApiKey: OPENAI_API_KEY!,
-		chunkSize: 500, // Smaller chunks for faster testing
-		chunkOverlap: 100,
-		maxContextFiles: 3, // Fewer files to reduce API calls
-		similarityThreshold: 0.5, // Lower threshold for more results
-		modelName: "text-embedding-3-small", // Cost-effective model
-	}
+	let testApiKey: string // kilocode_change
 
 	beforeAll(async () => {
-		if (!OPENAI_API_KEY) {
-			console.log("⚠️  Skipping integration tests - no OpenAI API key found")
-			console.log("Set OPENAI_API_KEY or TEST_OPENAI_API_KEY environment variable to run these tests")
+		if (SKIP_INTEGRATION_TESTS) {
 			return
 		}
 
+		// kilocode_change start - Get API key from any available source
+		testApiKey = getTestOpenAIApiKey()
 		console.log("🔑 Using OpenAI API key for integration testing")
+		
+		const testConfig = {
+			enabled: true,
+			openaiApiKey: testApiKey,
+			chunkSize: 500, // Smaller chunks for faster testing
+			chunkOverlap: 100,
+			maxContextFiles: 3, // Fewer files to reduce API calls
+			similarityThreshold: 0.5, // Lower threshold for more results
+			modelName: "text-embedding-3-small", // Cost-effective model
+		}
+		// kilocode_change end
+
 		enhancer = new LangChainContextEnhancer(testConfig)
 	}, 30000) // 30 second timeout for API initialization
 
