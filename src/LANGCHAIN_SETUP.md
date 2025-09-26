@@ -25,15 +25,16 @@ To enable LangChain integration, configure the following settings in your VS Cod
 
 1. **Get an OpenAI API Key**: Visit [OpenAI API](https://platform.openai.com/api-keys) to generate an API key
 
-2. **Configure in VS Code**: 
-   - Open VS Code Settings (Ctrl/Cmd + ,)
-   - Search for "kilo-code.langchain"
-   - Set `enabled` to `true`
-   - Add your OpenAI API key to `openaiApiKey`
+2. **Configure in VS Code**:
+
+    - Open VS Code Settings (Ctrl/Cmd + ,)
+    - Search for "kilo-code.langchain"
+    - Set `enabled` to `true`
+    - Add your OpenAI API key to `openaiApiKey`
 
 3. **Environment Variable** (alternative):
-   - Set the `OPENAI_API_KEY` environment variable
-   - Restart VS Code
+    - Set the `OPENAI_API_KEY` environment variable
+    - Restart VS Code
 
 ## Features
 
@@ -61,7 +62,7 @@ The system gracefully degrades if LangChain is unavailable - code suggestions co
 The LangChain integration consists of:
 
 - `LangChainContextEnhancer`: Core enhancement logic with OpenAI embeddings
-- `ProductionMemoryVectorStore`: In-memory vector store for document similarity
+- `MemoryVectorStore`: In-memory vector store for document similarity
 - `GhostContext`: Integration point with the existing context system
 - Configuration listeners for dynamic updates
 

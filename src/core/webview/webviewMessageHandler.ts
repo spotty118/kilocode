@@ -1778,7 +1778,64 @@ export const webviewMessageHandler = async (
 			}
 			// Validate ghostServiceSettings structure
 			const ghostServiceSettings = ghostServiceSettingsSchema.parse(message.values)
+
+			// Update global state for non-VSCode settings
 			await updateGlobalState("ghostServiceSettings", ghostServiceSettings)
+
+			// Save LangChain settings to VSCode configuration if they exist
+			if (ghostServiceSettings) {
+				const config = vscode.workspace.getConfiguration("kilo-code")
+				if (ghostServiceSettings.enableLangChain !== undefined) {
+					await config.update(
+						"langchain.enabled",
+						ghostServiceSettings.enableLangChain,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainOpenaiApiKey !== undefined) {
+					await config.update(
+						"langchain.openaiApiKey",
+						ghostServiceSettings.langChainOpenaiApiKey,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainChunkSize !== undefined) {
+					await config.update(
+						"langchain.chunkSize",
+						ghostServiceSettings.langChainChunkSize,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainMaxContextFiles !== undefined) {
+					await config.update(
+						"langchain.maxContextFiles",
+						ghostServiceSettings.langChainMaxContextFiles,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainChunkOverlap !== undefined) {
+					await config.update(
+						"langchain.chunkOverlap",
+						ghostServiceSettings.langChainChunkOverlap,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainSimilarityThreshold !== undefined) {
+					await config.update(
+						"langchain.similarityThreshold",
+						ghostServiceSettings.langChainSimilarityThreshold,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+				if (ghostServiceSettings.langChainModelName !== undefined) {
+					await config.update(
+						"langchain.modelName",
+						ghostServiceSettings.langChainModelName,
+						vscode.ConfigurationTarget.Global,
+					)
+				}
+			}
+
 			await provider.postStateToWebview()
 			vscode.commands.executeCommand("kilo-code.ghost.reload")
 			break

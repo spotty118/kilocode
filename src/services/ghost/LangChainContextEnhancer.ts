@@ -3,108 +3,8 @@ import * as vscode from "vscode"
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 import { Document } from "@langchain/core/documents"
 import { OpenAIEmbeddings } from "@langchain/openai"
-import { VectorStore } from "@langchain/core/vectorstores"
-import { Embeddings } from "@langchain/core/embeddings"
+import { MemoryVectorStore } from "langchain/vectorstores/memory"
 import { GhostSuggestionContext } from "./types"
-
-/**
- * Production-ready in-memory vector store implementation
- * This replaces mock code with a real implementation using OpenAI embeddings
- */
-class ProductionMemoryVectorStore extends VectorStore {
-	private documents: Document[] = []
-	private vectors: number[][] = []
-
-	_vectorstoreType(): string {
-		return "production_memory"
-	}
-
-	constructor(embeddings: Embeddings) {
-		super(embeddings, {})
-	}
-
-	async addDocuments(documents: Document[]): Promise<void> {
-		try {
-			const texts = documents.map(doc => doc.pageContent)
-			const vectors = await this.embeddings.embedDocuments(texts)
-			
-			this.documents.push(...documents)
-			this.vectors.push(...vectors)
-		} catch (error) {
-			console.error("[ProductionMemoryVectorStore] Failed to add documents:", error)
-			throw error
-		}
-	}
-
-	async addVectors(vectors: number[][], documents: Document[]): Promise<void> {
-		this.vectors.push(...vectors)
-		this.documents.push(...documents)
-	}
-
-	async similaritySearchVectorWithScore(query: number[], k: number): Promise<Array<[Document, number]>> {
-		if (this.vectors.length === 0 || this.documents.length === 0) {
-			return []
-		}
-
-		const similarities = this.vectors.map((vector, index) => ({
-			document: this.documents[index],
-			similarity: this.cosineSimilarity(query, vector),
-			index
-		}))
-
-		return similarities
-			.sort((a, b) => b.similarity - a.similarity)
-			.slice(0, k)
-			.map(item => [item.document, item.similarity])
-	}
-
-	override async similaritySearchWithScore(query: string, k: number): Promise<Array<[Document, number]>> {
-		try {
-			const queryVector = await this.embeddings.embedQuery(query)
-			return this.similaritySearchVectorWithScore(queryVector, k)
-		} catch (error) {
-			console.error("[ProductionMemoryVectorStore] Failed to perform similarity search:", error)
-			return []
-		}
-	}
-
-	override async similaritySearch(query: string, k: number): Promise<Document[]> {
-		const results = await this.similaritySearchWithScore(query, k)
-		return results.map(([doc]) => doc)
-	}
-
-	private cosineSimilarity(a: number[], b: number[]): number {
-		if (a.length !== b.length) return 0
-		
-		let dotProduct = 0
-		let normA = 0
-		let normB = 0
-		
-		for (let i = 0; i < a.length; i++) {
-			dotProduct += a[i] * b[i]
-			normA += a[i] * a[i]
-			normB += b[i] * b[i]
-		}
-		
-		const denominator = Math.sqrt(normA) * Math.sqrt(normB)
-		return denominator === 0 ? 0 : dotProduct / denominator
-	}
-
-	static override async fromTexts(
-		texts: string[],
-		metadatas: object[],
-		embeddings: Embeddings
-	): Promise<ProductionMemoryVectorStore> {
-		const store = new ProductionMemoryVectorStore(embeddings)
-		const documents = texts.map((text, i) => new Document({
-			pageContent: text,
-			metadata: metadatas[i] || {}
-		}))
-		await store.addDocuments(documents)
-		return store
-	}
-}
-// kilocode_change end
 
 /**
  * Configuration for LangChain context enhancement features
@@ -139,11 +39,12 @@ export interface LangChainEnhancedContext {
 export class LangChainContextEnhancer {
 	private config: LangChainContextConfig
 	private textSplitter: RecursiveCharacterTextSplitter
-	private vectorStore: ProductionMemoryVectorStore | null = null // kilocode_change - Use production-ready vector store
+	private vectorStore: MemoryVectorStore | null = null // kilocode_change - Use LangChain in-memory vector store
 	private embeddings: OpenAIEmbeddings | null = null // kilocode_change - Only use OpenAI embeddings for production
 	private isInitialized = false
 
-	constructor(config: LangChainContextConfig) { // kilocode_change - Make config required
+	constructor(config: LangChainContextConfig) {
+		// kilocode_change - Make config required
 		// kilocode_change start - Validate required configuration
 		if (!config.openaiApiKey) {
 			throw new Error("OpenAI API key is required for LangChain context enhancement")
@@ -165,6 +66,13 @@ export class LangChainContextEnhancer {
 			chunkSize: this.config.chunkSize,
 			chunkOverlap: this.config.chunkOverlap,
 		})
+
+		// Initialize vector store immediately if enabled to ensure isReady() works correctly
+		if (this.config.enabled) {
+			void this.initializeVectorStore().catch((error) => {
+				console.error("[LangChainContextEnhancer] Failed to initialize vector store in constructor:", error)
+			})
+		}
 	}
 
 	/**
@@ -172,8 +80,16 @@ export class LangChainContextEnhancer {
 	 */
 	private async initializeVectorStore(): Promise<void> {
 		if (this.isInitialized || !this.config.enabled) {
+			console.log(
+				"[LangChainContextEnhancer] Skipping vector store initialization - already initialized:",
+				this.isInitialized,
+				"or not enabled:",
+				!this.config.enabled,
+			)
 			return
 		}
+
+		console.log("[LangChainContextEnhancer] Initializing vector store with OpenAI embeddings...")
 
 		try {
 			// kilocode_change start - Initialize production OpenAI embeddings only
@@ -182,14 +98,23 @@ export class LangChainContextEnhancer {
 				modelName: this.config.modelName || "text-embedding-3-small",
 			})
 
-			// Create empty vector store with OpenAI embeddings
-			this.vectorStore = new ProductionMemoryVectorStore(this.embeddings)
+			console.log(
+				"[LangChainContextEnhancer] OpenAI embeddings initialized with model:",
+				this.config.modelName || "text-embedding-3-small",
+			)
+
+			// Create in-memory vector store with OpenAI embeddings
+			this.vectorStore = new MemoryVectorStore(this.embeddings)
+			console.log("[LangChainContextEnhancer] Memory vector store created")
 			// kilocode_change end
-			
+
 			this.isInitialized = true
+			console.log("[LangChainContextEnhancer] Vector store initialization completed successfully")
 		} catch (error) {
 			console.error("[LangChainContextEnhancer] Failed to initialize vector store:", error)
-			throw new Error(`Failed to initialize LangChain context enhancer: ${error instanceof Error ? error.message : 'Unknown error'}`)
+			throw new Error(
+				`Failed to initialize LangChain context enhancer: ${error instanceof Error ? error.message : "Unknown error"}`,
+			)
 		}
 	}
 
@@ -197,12 +122,16 @@ export class LangChainContextEnhancer {
 	 * Index documents from the workspace
 	 */
 	async indexWorkspaceDocuments(documents: vscode.TextDocument[]): Promise<void> {
+		console.log("[LangChainContextEnhancer] indexWorkspaceDocuments called with", documents.length, "documents")
+
 		if (!this.config.enabled) {
+			console.log("[LangChainContextEnhancer] Skipping indexing - not enabled")
 			return
 		}
 
 		await this.initializeVectorStore()
 		if (!this.vectorStore) {
+			console.log("[LangChainContextEnhancer] No vector store available after initialization")
 			return
 		}
 
@@ -217,23 +146,33 @@ export class LangChainContextEnhancer {
 
 				const chunks = await this.textSplitter.splitText(doc.getText())
 				for (let i = 0; i < chunks.length; i++) {
-					langchainDocs.push(new Document({
-						pageContent: chunks[i],
-						metadata: {
-							filePath: doc.uri.fsPath,
-							chunkIndex: i,
-							language: doc.languageId,
-						},
-					}))
+					langchainDocs.push(
+						new Document({
+							pageContent: chunks[i],
+							metadata: {
+								filePath: doc.uri.fsPath,
+								chunkIndex: i,
+								language: doc.languageId,
+							},
+						}),
+					)
 				}
 			}
 
 			if (langchainDocs.length > 0) {
+				console.log(
+					"[LangChainContextEnhancer] Making OpenAI API call to index",
+					langchainDocs.length,
+					"document chunks...",
+				)
 				await this.vectorStore.addDocuments(langchainDocs)
+				console.log("[LangChainContextEnhancer] Successfully indexed documents using OpenAI embeddings")
+			} else {
+				console.log("[LangChainContextEnhancer] No documents to index")
 			}
 			// kilocode_change end
 		} catch (error) {
-			console.warn("[LangChainContextEnhancer] Failed to index documents:", error)
+			console.error("[LangChainContextEnhancer] Failed to index documents:", error)
 		}
 	}
 
@@ -245,18 +184,37 @@ export class LangChainContextEnhancer {
 		originalContext: GhostSuggestionContext,
 		query?: string,
 	): Promise<LangChainEnhancedContext | null> {
+		console.log(
+			"[LangChainContextEnhancer] enhanceContext called - enabled:",
+			this.config.enabled,
+			"vectorStore:",
+			!!this.vectorStore,
+		)
+
 		if (!this.config.enabled || !this.vectorStore) {
+			console.log("[LangChainContextEnhancer] Skipping enhancement - not enabled or no vector store")
 			return null
 		}
 
 		try {
 			const searchQuery = query || this.buildSearchQuery(originalContext)
 			if (!searchQuery) {
+				console.log("[LangChainContextEnhancer] No search query generated")
 				return null
 			}
 
+			console.log(
+				"[LangChainContextEnhancer] Making OpenAI API call for similarity search with query:",
+				searchQuery.substring(0, 100) + "...",
+			)
+
 			// kilocode_change start - Use real LangChain similarity search
 			const relevantDocs = await this.vectorStore.similaritySearchWithScore(searchQuery, 5)
+			console.log(
+				"[LangChainContextEnhancer] OpenAI API call completed - found",
+				relevantDocs.length,
+				"documents",
+			)
 
 			const relevantCodeChunks = relevantDocs
 				.filter(([, score]: [Document, number]) => score >= this.config.similarityThreshold)
@@ -267,17 +225,29 @@ export class LangChainContextEnhancer {
 				}))
 			// kilocode_change end
 
-			const relatedFiles: string[] = Array.from(new Set(relevantCodeChunks.map((chunk: { filePath: string }) => chunk.filePath)))
+			console.log("[LangChainContextEnhancer] Filtered to", relevantCodeChunks.length, "relevant chunks")
+
+			const relatedFiles: string[] = Array.from(
+				new Set(relevantCodeChunks.map((chunk: { filePath: string }) => chunk.filePath)),
+			)
 
 			const contextSummary = this.generateContextSummary(originalContext, relevantCodeChunks)
 
-			return {
+			const result = {
 				relevantCodeChunks,
 				contextSummary,
 				relatedFiles,
 			}
+
+			console.log("[LangChainContextEnhancer] Enhancement completed successfully:", {
+				chunksCount: relevantCodeChunks.length,
+				relatedFilesCount: relatedFiles.length,
+				summaryLength: contextSummary.length,
+			})
+
+			return result
 		} catch (error) {
-			console.warn("[LangChainContextEnhancer] Failed to enhance context:", error)
+			console.error("[LangChainContextEnhancer] Failed to enhance context:", error)
 			return null
 		}
 	}
@@ -349,21 +319,27 @@ export class LangChainContextEnhancer {
 		if (newConfig.openaiApiKey !== undefined && !newConfig.openaiApiKey) {
 			throw new Error("OpenAI API key cannot be empty")
 		}
-		
+
 		// Validate numeric values
 		if (newConfig.chunkSize !== undefined && (newConfig.chunkSize < 100 || newConfig.chunkSize > 4000)) {
 			throw new Error("Chunk size must be between 100 and 4000")
 		}
-		
+
 		if (newConfig.chunkOverlap !== undefined && (newConfig.chunkOverlap < 0 || newConfig.chunkOverlap > 1000)) {
 			throw new Error("Chunk overlap must be between 0 and 1000")
 		}
-		
-		if (newConfig.maxContextFiles !== undefined && (newConfig.maxContextFiles < 1 || newConfig.maxContextFiles > 50)) {
+
+		if (
+			newConfig.maxContextFiles !== undefined &&
+			(newConfig.maxContextFiles < 1 || newConfig.maxContextFiles > 50)
+		) {
 			throw new Error("Max context files must be between 1 and 50")
 		}
-		
-		if (newConfig.similarityThreshold !== undefined && (newConfig.similarityThreshold < 0 || newConfig.similarityThreshold > 1)) {
+
+		if (
+			newConfig.similarityThreshold !== undefined &&
+			(newConfig.similarityThreshold < 0 || newConfig.similarityThreshold > 1)
+		) {
 			throw new Error("Similarity threshold must be between 0 and 1")
 		}
 		// kilocode_change end

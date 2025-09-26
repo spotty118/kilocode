@@ -14,6 +14,7 @@ export const ghostServiceSettingsSchema = z
 		langChainOpenaiApiKey: z.string().optional(),
 		langChainChunkSize: z.number().min(500).max(2000).default(1000).optional(),
 		langChainMaxContextFiles: z.number().min(5).max(50).default(10).optional(),
+		langChainChunkOverlap: z.number().min(0).max(1000).default(200).optional(),
 		langChainSimilarityThreshold: z.number().min(0.1).max(1.0).default(0.7).optional(),
 		langChainModelName: z.string().default("text-embedding-3-small").optional(),
 		// kilocode_change end
