@@ -52,7 +52,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)("LangChain Real API Integration Tests", 
 
 	it("should successfully initialize with real OpenAI embeddings", () => {
 		expect(enhancer.getConfig().enabled).toBe(true)
-		expect(enhancer.getConfig().openaiApiKey).toBe(OPENAI_API_KEY)
+		expect(enhancer.getConfig().openaiApiKey).toBe(testApiKey) // kilocode_change
 		expect(enhancer.getConfig().modelName).toBe("text-embedding-3-small")
 	})
 
@@ -141,7 +141,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)("LangChain Real API Integration Tests", 
 					expect(typeof chunk.similarity).toBe("number")
 					expect(chunk.similarity).toBeGreaterThanOrEqual(0)
 					expect(chunk.similarity).toBeLessThanOrEqual(1)
-					expect(chunk.similarity).toBeGreaterThanOrEqual(testConfig.similarityThreshold)
+					expect(chunk.similarity).toBeGreaterThanOrEqual(enhancer.getConfig().similarityThreshold) // kilocode_change
 				})
 			}
 
@@ -225,7 +225,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)("LangChain Real API Integration Tests", 
 
 		// Create enhancer with invalid API key
 		const invalidEnhancer = new LangChainContextEnhancer({
-			...testConfig,
+			...enhancer.getConfig(), // kilocode_change
 			openaiApiKey: "invalid-key-12345",
 		})
 
