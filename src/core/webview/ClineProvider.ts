@@ -1990,10 +1990,40 @@ export class ClineProvider
 			sharingEnabled: sharingEnabled ?? false,
 			organizationAllowList,
 			// kilocode_change start
-			ghostServiceSettings: ghostServiceSettings ?? {
-				enableQuickInlineTaskKeybinding: true,
-				enableSmartInlineTaskKeybinding: true,
-			},
+			ghostServiceSettings: (() => {
+				// Load LangChain settings from VSCode configuration and merge with ghost service settings
+				const langChainConfig = vscode.workspace.getConfiguration("kilo-code.langchain")
+				return {
+					...(ghostServiceSettings ?? {
+						enableQuickInlineTaskKeybinding: true,
+						enableSmartInlineTaskKeybinding: true,
+					}),
+					enableLangChain:
+						langChainConfig.get<boolean>("enabled") ?? ghostServiceSettings?.enableLangChain ?? false,
+					langChainOpenaiApiKey:
+						langChainConfig.get<string>("openaiApiKey") ??
+						ghostServiceSettings?.langChainOpenaiApiKey ??
+						"",
+					langChainModelName:
+						langChainConfig.get<string>("modelName") ??
+						ghostServiceSettings?.langChainModelName ??
+						"text-embedding-3-small",
+					langChainChunkSize:
+						langChainConfig.get<number>("chunkSize") ?? ghostServiceSettings?.langChainChunkSize ?? 1000,
+					langChainChunkOverlap:
+						langChainConfig.get<number>("chunkOverlap") ??
+						ghostServiceSettings?.langChainChunkOverlap ??
+						200,
+					langChainMaxContextFiles:
+						langChainConfig.get<number>("maxContextFiles") ??
+						ghostServiceSettings?.langChainMaxContextFiles ??
+						10,
+					langChainSimilarityThreshold:
+						langChainConfig.get<number>("similarityThreshold") ??
+						ghostServiceSettings?.langChainSimilarityThreshold ??
+						0.7,
+				}
+			})(),
 			// kilocode_change end
 			organizationSettingsVersion,
 			condensingApiConfigId,
@@ -2205,10 +2235,44 @@ export class ClineProvider
 			commitMessageApiConfigId: stateValues.commitMessageApiConfigId, // kilocode_change
 			terminalCommandApiConfigId: stateValues.terminalCommandApiConfigId, // kilocode_change
 			// kilocode_change start
-			ghostServiceSettings: stateValues.ghostServiceSettings ?? {
-				enableQuickInlineTaskKeybinding: true,
-				enableSmartInlineTaskKeybinding: true,
-			},
+			ghostServiceSettings: (() => {
+				// Load LangChain settings from VSCode configuration and merge with state values
+				const langChainConfig = vscode.workspace.getConfiguration("kilo-code.langchain")
+				return {
+					...(stateValues.ghostServiceSettings ?? {
+						enableQuickInlineTaskKeybinding: true,
+						enableSmartInlineTaskKeybinding: true,
+					}),
+					enableLangChain:
+						langChainConfig.get<boolean>("enabled") ??
+						stateValues.ghostServiceSettings?.enableLangChain ??
+						false,
+					langChainOpenaiApiKey:
+						langChainConfig.get<string>("openaiApiKey") ??
+						stateValues.ghostServiceSettings?.langChainOpenaiApiKey ??
+						"",
+					langChainModelName:
+						langChainConfig.get<string>("modelName") ??
+						stateValues.ghostServiceSettings?.langChainModelName ??
+						"text-embedding-3-small",
+					langChainChunkSize:
+						langChainConfig.get<number>("chunkSize") ??
+						stateValues.ghostServiceSettings?.langChainChunkSize ??
+						1000,
+					langChainChunkOverlap:
+						langChainConfig.get<number>("chunkOverlap") ??
+						stateValues.ghostServiceSettings?.langChainChunkOverlap ??
+						200,
+					langChainMaxContextFiles:
+						langChainConfig.get<number>("maxContextFiles") ??
+						stateValues.ghostServiceSettings?.langChainMaxContextFiles ??
+						10,
+					langChainSimilarityThreshold:
+						langChainConfig.get<number>("similarityThreshold") ??
+						stateValues.ghostServiceSettings?.langChainSimilarityThreshold ??
+						0.7,
+				}
+			})(),
 			// kilocode_change end
 			experiments: stateValues.experiments ?? experimentDefault,
 			autoApprovalEnabled: stateValues.autoApprovalEnabled ?? true,

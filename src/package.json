@@ -627,8 +627,8 @@
 				"kilo-code.langchain.similarityThreshold": {
 					"type": "number",
 					"default": 0.7,
-					"minimum": 0.0,
-					"maximum": 1.0,
+					"minimum": 0,
+					"maximum": 1,
 					"description": "Minimum similarity threshold for LangChain context matching"
 				},
 				"kilo-code.langchain.modelName": {
@@ -677,6 +677,7 @@
 		"@langchain/core": "^0.3.77",
 		"@langchain/openai": "^0.6.13",
 		"@langchain/textsplitters": "^0.1.0",
+		"langchain": "^0.3.34",
 		"@lmstudio/sdk": "^1.1.1",
 		"@mistralai/mistralai": "^1.9.18",
 		"@modelcontextprotocol/sdk": "1.12.0",

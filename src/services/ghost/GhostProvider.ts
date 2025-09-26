@@ -66,10 +66,11 @@ export class GhostProvider {
 		this.workspaceEdit = new GhostWorkspaceEdit()
 		this.providerSettingsManager = new ProviderSettingsManager(context)
 		this.model = new GhostModel()
-		this.ghostContext = new GhostContext(
-			this.documentStore,
-			vscode.workspace.getConfiguration("kilo-code.langchain").get("enabled", false), // kilocode_change
-		)
+		// Initialize GhostContext without LangChain first, then configure it properly
+		this.ghostContext = new GhostContext(this.documentStore, false)
+
+		// Initialize LangChain after all other components are set up - don't await in constructor
+		void this.initializeLangChainContext()
 		this.cursor = new GhostCursor()
 		this.cursorAnimation = new GhostGutterAnimation(context)
 
@@ -128,6 +129,10 @@ export class GhostProvider {
 		this.settings = this.loadSettings()
 		await this.model.reload(this.settings, this.providerSettingsManager)
 		this.cursorAnimation.updateSettings(this.settings || undefined)
+
+		// Reinitialize LangChain context when loading
+		await this.initializeLangChainContext()
+
 		await this.updateGlobalContext()
 		this.updateStatusBar()
 	}
@@ -209,19 +214,32 @@ export class GhostProvider {
 	private async onDidChangeConfiguration(event: vscode.ConfigurationChangeEvent): Promise<void> {
 		if (event.affectsConfiguration("kilo-code.langchain")) {
 			try {
-				const langChainEnabled = vscode.workspace.getConfiguration("kilo-code.langchain").get("enabled", false)
-				const openaiApiKey = vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.openaiApiKey") || process.env.OPENAI_API_KEY
+				const langChainConfig = vscode.workspace.getConfiguration("kilo-code.langchain")
+				const langChainEnabled = langChainConfig.get<boolean>("enabled", false)
+				let openaiApiKey = langChainConfig.get<string>("openaiApiKey") || process.env.OPENAI_API_KEY
+
+				// kilocode_change - Fallback to main extension's OpenAI API key if LangChain key not set
+				if (!openaiApiKey) {
+					try {
+						openaiApiKey = ContextProxy.instance?.getSecret("openAiApiKey") || ""
+						if (openaiApiKey) {
+							console.log("[GhostProvider] Using main extension's OpenAI API key for LangChain")
+						}
+					} catch (error) {
+						console.warn("[GhostProvider] Failed to access main OpenAI API key:", error)
+					}
+				}
 
 				if (langChainEnabled && openaiApiKey && this.ghostContext.hasLangChainEnhancement()) {
 					// Update existing LangChain configuration
 					this.ghostContext.updateLangChainConfig({
 						enabled: langChainEnabled,
-						chunkSize: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkSize") || 1000,
-						chunkOverlap: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.chunkOverlap") || 200,
-						maxContextFiles: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.maxContextFiles") || 10,
-						similarityThreshold: vscode.workspace.getConfiguration().get<number>("kilo-code.langchain.similarityThreshold") || 0.7,
+						chunkSize: langChainConfig.get<number>("chunkSize") || 1000,
+						chunkOverlap: langChainConfig.get<number>("chunkOverlap") || 200,
+						maxContextFiles: langChainConfig.get<number>("maxContextFiles") || 10,
+						similarityThreshold: langChainConfig.get<number>("similarityThreshold") || 0.7,
 						openaiApiKey,
-						modelName: vscode.workspace.getConfiguration().get<string>("kilo-code.langchain.modelName") || "text-embedding-3-small",
+						modelName: langChainConfig.get<string>("modelName") || "text-embedding-3-small",
 					})
 				} else if (langChainEnabled && openaiApiKey && !this.ghostContext.hasLangChainEnhancement()) {
 					// Recreate GhostContext with LangChain enabled
@@ -234,11 +252,49 @@ export class GhostProvider {
 				}
 			} catch (error) {
 				console.error("[GhostProvider] Failed to update LangChain configuration:", error)
-				vscode.window.showWarningMessage(`Failed to update LangChain configuration: ${error instanceof Error ? error.message : 'Unknown error'}`)
+				vscode.window.showWarningMessage(
+					`Failed to update LangChain configuration: ${error instanceof Error ? error.message : "Unknown error"}`,
+				)
 			}
 		}
 	}
 	// kilocode_change end
+
+	/**
+	 * Initialize LangChain context after all components are ready
+	 */
+	private async initializeLangChainContext(): Promise<void> {
+		try {
+			const langChainConfig = vscode.workspace.getConfiguration("kilo-code.langchain")
+			const langChainEnabled = langChainConfig.get<boolean>("enabled", false)
+			let openaiApiKey = langChainConfig.get<string>("openaiApiKey") || process.env.OPENAI_API_KEY
+
+			// Fallback to main extension's OpenAI API key if LangChain key not set
+			if (!openaiApiKey) {
+				try {
+					openaiApiKey = ContextProxy.instance?.getSecret("openAiApiKey") || ""
+					if (openaiApiKey) {
+						console.log("[GhostProvider] Using main extension's OpenAI API key for LangChain")
+					}
+				} catch (error) {
+					console.warn("[GhostProvider] Failed to access main OpenAI API key:", error)
+				}
+			}
+
+			if (langChainEnabled && openaiApiKey) {
+				// Recreate GhostContext with LangChain enabled
+				console.log("[GhostProvider] Initializing LangChain context enhancement")
+				this.ghostContext = new GhostContext(this.documentStore, true)
+			} else if (langChainEnabled && !openaiApiKey) {
+				console.warn("[GhostProvider] LangChain enabled but no OpenAI API key found")
+				vscode.window.showWarningMessage(
+					"LangChain enabled but no OpenAI API key configured. Please set your API key in settings.",
+				)
+			}
+		} catch (error) {
+			console.error("[GhostProvider] Failed to initialize LangChain context:", error)
+		}
+	}
 
 	public async promptCodeSuggestion() {
 		if (!this.enabled) {
