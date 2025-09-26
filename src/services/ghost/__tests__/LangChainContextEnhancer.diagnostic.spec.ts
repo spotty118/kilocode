@@ -1,13 +1,14 @@
 // Real LangChain API diagnostic tests - NO MOCKS
-// These tests verify API integration and require a valid OPENAI_API_KEY environment variable
+// These tests verify API integration and require a valid OpenAI API key from any source
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
 import * as vscode from "vscode"
 import { LangChainContextEnhancer } from "../LangChainContextEnhancer"
 import { GhostSuggestionContext } from "../types"
+import { shouldSkipLangChainTests, getAvailableOpenAIApiKey } from "./api-key-utils" // kilocode_change
 
-// Check if we have a real OpenAI API key for diagnostic testing
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.TEST_OPENAI_API_KEY
-const SKIP_API_TESTS = !OPENAI_API_KEY
+// Check if we have a real OpenAI API key for diagnostic testing from any source
+const SKIP_API_TESTS = shouldSkipLangChainTests() // kilocode_change
+const AVAILABLE_API_KEY = getAvailableOpenAIApiKey() // kilocode_change
 
 // Mock vscode document
 const mockDocument = {
@@ -22,7 +23,7 @@ describe("LangChain API Diagnostic Tests", () => {
 	let enhancer: LangChainContextEnhancer
 	const testConfig = {
 		enabled: true,
-		openaiApiKey: OPENAI_API_KEY || "test-key-for-validation",
+		openaiApiKey: AVAILABLE_API_KEY || "test-key-for-validation", // kilocode_change
 		chunkSize: 1000,
 		chunkOverlap: 200,
 		maxContextFiles: 10,

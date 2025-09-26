@@ -35,8 +35,11 @@ cd src && npx vitest run services/ghost/__tests__/LangChainContextEnhancer.*.spe
 2. Create a new API key
 3. Copy the key (starts with `sk-`)
 
-### Step 2: Set Environment Variable
+### Step 2: Configure API Key
 
+The tests will automatically detect your OpenAI API key from **any** of these sources:
+
+**Option 1: Environment Variables**
 ```bash
 # Method 1: Direct environment variable
 export OPENAI_API_KEY="sk-your-actual-key-here"
@@ -44,6 +47,15 @@ export OPENAI_API_KEY="sk-your-actual-key-here"
 # Method 2: Test-specific variable
 export TEST_OPENAI_API_KEY="sk-your-actual-key-here"
 ```
+
+**Option 2: VS Code LangChain Settings**
+- Open VS Code Settings (Ctrl/Cmd + ,)
+- Search for "kilo-code.langchain.openaiApiKey"
+- Set your API key there
+
+**Option 3: Main Kilo Settings** <!-- kilocode_change -->
+- Use the same OpenAI API key you've set in the main Kilo Code extension settings
+- No additional configuration needed - tests will automatically use it
 
 ### Step 3: Run Real API Tests
 
@@ -144,7 +156,7 @@ The tests validate the **production-ready** LangChain integration:
 
 ## VS Code Settings Integration
 
-The tests also validate the VS Code configuration:
+The tests validate VS Code configuration and **automatically detect API keys** from multiple sources:
 
 ```json
 {
@@ -156,6 +168,16 @@ The tests also validate the VS Code configuration:
 	"kilo-code.langchain.similarityThreshold": 0.7,
 	"kilo-code.langchain.modelName": "text-embedding-3-small"
 }
+```
+
+**✨ Smart Key Detection** <!-- kilocode_change -->
+
+Tests now automatically find your OpenAI API key from:
+1. **Environment variables** (`OPENAI_API_KEY`, `TEST_OPENAI_API_KEY`)
+2. **LangChain-specific setting** (`kilo-code.langchain.openaiApiKey`)
+3. **Main extension settings** (your primary OpenAI API key in Kilo Code)
+
+This means you don't need to set up separate API keys for testing if you already have Kilo Code configured!
 ```
 
 ## Security Notes
